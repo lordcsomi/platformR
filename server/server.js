@@ -34,61 +34,68 @@ const serverSettings = {
 //---------------------------------
 // GLOBAL VARIABLES
 //---------------------------------
-players = {};
-userNames = [];
-userInfos = {};
-spectators = [];
-rooms = [];
-exampleplayer = {
-  name: 'example',
-  id: '0123456789',
-  room: 'exampleRoom',
-  width: 20,
-  height: 20,
-  color: 'red',
-  x: 1600,
-  y: 2000,
-  dX: 0,
-  dY: 0,
-  left: false,
-  right: false,
-  jump: false,
-  collision : {
+
+var gameState = {}; //socket.id = {lots of info of the player} offical game state
+  players = {}; //socket.id = {lots of info of the player} stuff that the client sends to the server
+  userInfos = {}; //socket.id = {other infromation what only the server knows}
+  userNames = []; //to store all usernames in use rn
+  spectators = []; //this is only a feature plan
+  rooms = []; // this on is also just a plan
+
+//---------------------------------
+// INIT USER
+//---------------------------------
+function User(name, id, ip, screen, mobile) {
+  this.name = name;
+  this.id = id;
+  this.ip = ip;
+  this.screen = screen;
+  this.latency = 0;
+  this.active = true;
+  this.mobile = false;
+}
+
+function Player(name, id, room, x, y) {
+  this.name = name;
+  this.id = id;
+  this.room = room;
+  this.width = 20;
+  this.height = 20;
+  this.color = 'black';
+  this.x = x;
+  this.y = y;
+  this.dX = 0;
+  this.dY = 0;
+  this.left = false;
+  this.right = false;
+  this.jump = false;
+  this.collision = {
     top: false,
     bottom: false,
     left: false,
     right: false
-  },
-  gravity: 9.81*0.1, 
-  maxDX: 9, 
-  maxDY: 50, 
-  jumpForce: 10,
-  acceleration: 0.8,
-  friction: 0.9,
-  grounded: false,
-  jumping: false,
-  doubleJumpingAllowed: true,
-  doubleJumping: false,
-  jumpCooldown: 0.3,
-  wallJumpingLeft: false,
-  wallJumpingRight: false,
-  wallJumping: false,
-  freemode: false,
-  latency: 0,
-};
+  };
+  this.gravity = 9.81 * 0.1;
+  this.maxDX = 9;
+  this.maxDY = 50;
+  this.jumpForce = 10;
+  this.acceleration = 0.8;
+  this.friction = 0.9;
+  this.grounded = false;
+  this.jumping = false;
+  this.doubleJumpingAllowed = true;
+  this.doubleJumping = false;
+  this.jumpCooldown = 0.3;
+  this.wallJumpingLeft = false;
+  this.wallJumpingRight = false;
+  this.wallJumping = false;
+  this.freemode = false;
+  this.latency = 0;
+}
 
-exmapleUser = {
-  name: 'example',
-  id: '0123456789',
-  ip: '123.456.789.012',
-  screen: {
-    width: 1920,
-    height: 1080,
-  },
-  latency: 0,
-    
-};
-
+//--------------------------------
+// CONNECTION
+//--------------------------------
 app.use(express.static('public'));
 
 server.listen(port, function () {
@@ -102,18 +109,20 @@ server.listen(port, function () {
 // socket connection
 io.on('connection', function (socket) {
   // detect if the ip is banned
-  if (bannedIPs.includes(socket.handshake.address)) { // banned ip?
+  if (bannedIPs.includes(socket.handshake.address)) {
     console.log('banned ip tried to connect:', socket.handshake.address);
     socket.emit('forceDiscConnect', true);
     socket.disconnect();
     return;
   }
-  else if (players.length >= maxPlayers) { // if max players is reached
+  // if max players is reached
+  else if (userNames.length >= maxPlayers) {
     console.log('max players reached:', socket.handshake.address);
     socket.disconnect();
     return;
   }
-  else if (io.engine.clientsCount >= maxConnections) { // if max connections is reached
+  // if max connections is reached
+  else if (io.engine.clientsCount >= maxConnections) {
     console.log('max connections reached:', socket.handshake.address);
     socket.disconnect();
     return;
@@ -122,6 +131,14 @@ io.on('connection', function (socket) {
   console.log('a user connected id:', socket.id, 'ip:', socket.handshake.address);
   const userAgent = socket.handshake.headers['user-agent'];
   const isMobile = /Mobile/.test(userAgent);
+
+  // save user info
+  userInfos[socket.id] = new User('name not set yet', socket.id, socket.handshake.address, 'dont know yet', isMobile);
+
+  // listen for screen size
+  socket.on('screenSize', function (screen) {
+    userInfos[socket.id].screen = screen;
+  });
 
   //send information for name validation
   socket.emit('NameRules', validName);
@@ -151,18 +168,18 @@ io.on('connection', function (socket) {
       socket.emit('invalidName', 'Name is already in use.');
       return;
     }
-    // create new player
-    players[socket.id] = exampleplayer;
-    players[socket.id].name = name;
-    players[socket.id].id = socket.id;
-
+    // create new player and update userInfos
+    userInfos[socket.id].name = name;
+    userNames.push(name);
+    gameState[socket.id] = new Player(name, socket.id, 'lobby', 0, 0);
 
     // send name to all players
-    socket.emit('gameState', players);
+    socket.emit('gameState', gameState);
     socket.emit('nameSet', name);
     io.emit('namesInUse', userNames);
-    console.log('id:', socket.id, 'set name:', name);
+    console.log('--- new player in game:', gameState[socket.id].name);
 
+    // start game for the new player
     socket.emit('startGame', {});
   });
 
@@ -178,18 +195,21 @@ io.on('connection', function (socket) {
       players[socket.id] = player;
     }
   });
+
+  // on tabHidden
+  socket.on('tabHidden', function () {
+    userInfos[socket.id].active = false;
+  });
+
+  // on tabVisible
+  socket.on('tabVisible', function () {
+    userInfos[socket.id].active = true;
+  });
   
   // disconnect
   socket.on('disconnect', function () {
-    console.log('user disconnected id:', socket.id, 'ip:', socket.handshake.address);
-    // remove player
-    if (socket.name) {
-      userNames.splice(userNames.indexOf(socket.name), 1);
-      // remove player from players{}
-      delete players[socket.id];
-      //remove player from userInfos{}
-      delete userInfos[socket.id];
-    }
+    // remove player and log
+    console.log('user disconnected:', socket.id);
     
     // send to all clients except the disconected user the namesInUse
     io.emit('namesInUse', userNames);
@@ -205,18 +225,18 @@ io.on('connection', function (socket) {
 // SERVER TICK
 //---------------------------------
 setInterval(function () {
-  // update all players
-
-  // send update game state to all clients
-  io.emit('gameState', players);
-
+  updateGame();
+  io.emit('gameState', gameState);
 }, 1000/60);
+
+function updateGame() {
+
+}
 
 //---------------------------------
 // ERROR HANDLING
 //---------------------------------
 function invalidPositionsToFile(outputPath, invalidPositions, separator) {
-  // example of invalidPositions: [{x:1, y:2, dX:3, dY:4, grounded:true, jumping:false, doubleJumping:false, wallJumpingLeft:false, wallJumpingRight:false, wallJumping:false, collision:{left:false, right:false, top:false, bottom:false}}, ...]
   const fs = require('fs');
   let output = '';
   output += `x${separator}y${separator}dX${separator}dY${separator}grounded${separator}jumping${separator}doubleJumping${separator}wallJumpingLeft${separator}wallJumpingRight${separator}wallJumping${separator}collision.left${separator}collision.right${separator}collision.top${separator}collision.bottom \n`;

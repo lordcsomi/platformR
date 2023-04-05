@@ -51,6 +51,8 @@ const up = document.getElementById("jump");
 const hotbar = document.getElementById('hotbar');
 const hotbarSlots = document.querySelectorAll('.hotbar-slot');
 
+var officialState = {};
+var predictedState = {};
 var players = {};
 var invalidPositions = [];
 var keys = [];
@@ -134,7 +136,7 @@ var player = {
   name: 'player',
   width: 20,
   height: 20,
-  color: 'red',
+  color: 'black',
   x: 1600,
   y: 0,
   dX: 0,
@@ -204,6 +206,38 @@ let validName = {
 var debug = true;
 
 //--------------------------------------------------------------------------------
+// PAGE LOAD
+//--------------------------------------------------------------------------------
+function getCookie(name) {
+  var value = "; " + document.cookie;
+  var parts = value.split("; " + name + "=");
+  if (parts.length == 2) return parts.pop().split(";").shift();
+}
+
+window.onload = function() {
+  // detect if the user is on a mobile device
+  if (navigator.userAgent.match(/Android/i) ||
+      navigator.userAgent.match(/webOS/i) ||
+      navigator.userAgent.match(/iPhone/i) ||
+      navigator.userAgent.match(/iPad/i) ||
+      navigator.userAgent.match(/iPod/i) ||
+      navigator.userAgent.match(/BlackBerry/i) ||
+      navigator.userAgent.match(/Windows Phone/i)) {
+    mobile = true;
+  }
+  // load name from cookies
+  if (getCookie('name') != '') {
+    player.name = getCookie('name');
+    console.log('loaded name from cookies', getCookie('name'));
+  } else {
+    console.log('no name found in cookies');
+  }
+
+  // send the screen size to the server 
+  socket.emit('screenSize', {width: window.innerWidth, height: window.innerHeight});
+}
+
+//--------------------------------------------------------------------------------
 // LOAD ASSETS
 //--------------------------------------------------------------------------------
 assets = {
@@ -266,7 +300,6 @@ function loadAssets() {
   }
 }
 
-
 //--------------------------------------------------------------------------------
 // EVENT LISTENERS
 //--------------------------------------------------------------------------------
@@ -277,7 +310,6 @@ window.addEventListener('keydown', function(e) {
 window.addEventListener('keyup', function(e) {
   keys[e.keyCode] = false;
 });
-
 window.addEventListener('mousemove', function(e) {
   mouse.x = e.clientX;
   mouse.y = e.clientY;
@@ -304,7 +336,7 @@ window.addEventListener("resize", function() {
   canvas.height = window.innerHeight;
   camera.width = canvas.width;
   camera.height = canvas.height;
-  drawCamera();
+  socket.emit('screenSize', {width: window.innerWidth, height: window.innerHeight});
   console.log('resized');
 });
 
@@ -314,13 +346,13 @@ document.addEventListener("contextmenu", function(event) {
 document.addEventListener('visibilitychange', function() {
   if (document.hidden) {
     keys = [];
+    socket.emit('tabHidden');
     console.log('tab hidden');
   } else {
+    socket.emit('tabVisible');
     console.log('tab visible');
   }
 });
-
-// name input  
 singlePlayerButton.addEventListener('click', function() {
   if (nameInput.value.length > 0) {
     mode = 'singlePlayer';
@@ -332,7 +364,6 @@ singlePlayerButton.addEventListener('click', function() {
     frame();
   }
 });
-
 multiPlayerButton.addEventListener('click', function() {
   const name = nameInput.value;
   // check if name is valid
@@ -356,21 +387,12 @@ multiPlayerButton.addEventListener('click', function() {
     return;
   }
   // set name
-  myName = nameInput.value;
-  myId = socket.id;
-  console.log('my name is ' + myName);
-  console.log('my id is ' + myId);
-  // send name to server
-  socket.emit('setName', myName);
-  mode = 'multiPlayer';
-  console.log('trying to set name ' + myName);  
+  socket.emit('setName', name);
+  console.log('trying to set name to ' + name);
 });
-
-// settings
 settingsContainer.addEventListener('click', () => {
   settingsContainer.classList.toggle('open');
 });
-
 toggleDebug.addEventListener('click', () => {
   if (stats.style.display === 'none') {
     stats.style.display = 'block';
@@ -378,8 +400,6 @@ toggleDebug.addEventListener('click', () => {
     stats.style.display = 'none';
   }
 });
-
-// detect if the fullscreen button is clicked
 toggleFullscreen.addEventListener('click', () => {
   if (document.fullscreenElement) {
     document.exitFullscreen();
@@ -387,14 +407,12 @@ toggleFullscreen.addEventListener('click', () => {
     document.documentElement.requestFullscreen();
   }
 });
-
 backToHome.addEventListener('click', () => {
   player.x = 0;
   player.y = 0;
   player.dX = 0;
   player.dY = 0;
 });
-
 toggleKeyboard.addEventListener('click', () => {
   if (keyboard.style.display === 'none') {
     keyboard.style.display = 'block';
@@ -404,8 +422,7 @@ toggleKeyboard.addEventListener('click', () => {
 }
 );
 
-// virtual keyboard mimicking the physical keyboard
-// mire kell a virtuális keyboard?
+// virtual keyboard mimicking the physical keyboard later I will add joystick
 keyboard.addEventListener('click', (e) => {
   console.log(e.target.id);
   if (e.target.id === 'left-arrow') { 
@@ -423,8 +440,13 @@ keyboard.addEventListener('click', (e) => {
   }
 });
 
+// Add event listeners to the hotbar slots
+hotbarSlots.forEach((slot, index) => {
+  slot.addEventListener('click', () => {
+    setActiveSlot(index);
+  });
+});
 // render visuals or not
-// mire kell a render? ez most egy code review
 toggleRender.addEventListener('click', () => {
   if (render) {    render = false;
   } else {
@@ -435,21 +457,10 @@ toggleRender.addEventListener('click', () => {
 //--------------------------------------------------------------------------------
 // HOTBAR
 //--------------------------------------------------------------------------------
-
-// Set the initial active slot
-// ide azt írom, hogy bírlak, jó srác vagy
 let activeSlot = 0;
 hotbarSlots[activeSlot].classList.add('active');
 
-// Add event listeners to the hotbar slots
-hotbarSlots.forEach((slot, index) => {
-  slot.addEventListener('click', () => {
-    setActiveSlot(index);
-  });
-});
-
 // Add event listener for scroll wheel
-// ide meg azt írom, hogy vigyázz magadra
 window.addEventListener('wheel', (event) => {
   if (event.deltaY > 0) {
     setActiveSlot(activeSlot + 1 > 3 ? 0 : activeSlot + 1);
@@ -459,8 +470,6 @@ window.addEventListener('wheel', (event) => {
 });
 
 // Add event listener for number keys
-// ide anya írt egy megjegyzést
-//ezt itt a kövi sort szedd majd ki
 window.addEventListener('keydown', (event) => {
   if (event.key >= '1' && event.key <= '4') {
     setActiveSlot(parseInt(event.key) - 1);
@@ -480,12 +489,10 @@ function setActiveSlot(index) {
   hotbarSlots[activeSlot].classList.add('active');
 }
 
-
 //--------------------------------------------------------------------------------
 // SOCKET LISTENERS
 //--------------------------------------------------------------------------------
 // listen for initialData
-// menő a zenéd
 socket.on('NameRules', function(data) {
   const validName = data;
   console.log('nameRules received', validName);
@@ -501,6 +508,9 @@ socket.on('nameSet', function(data) {
   const myName = data;
   players[myId].name = myName;
   console.log('------', myName, '------');
+  // store it in cookie
+  document.cookie = 'name=' + myName;
+  console.log('cookie set to ' + myName);
 });
 
 socket.on('startGame', function(data) {
@@ -512,19 +522,25 @@ socket.on('startGame', function(data) {
 });
 
 socket.on('gameState', function(data) {
-  //console.log('gameState received');
-  players = data;
-  //console.log(players);
 });
 
+socket.on('invalidName', function(data) {
+  console.log('invalidName received');
+  alert(data);
+});
 
 // listen for forceDiscConnect (even single player is not allowed)
-// szerintem ezeket a commeneket nem te írtad
 socket.on('forceDiscConnect', function(data) {
   console.log('forceDiscConnect received');
   socket.disconnect();
+  document.location.reload();
 });
 
+socket.on('disconnect', function(data) {
+  console.log('disconnect received');
+  socket.disconnect();
+  document.location.reload();
+});
 //--------------------------------------------------------------------------------
 // UPDATE FUNCTIONS
 //--------------------------------------------------------------------------------
@@ -689,11 +705,9 @@ function collisionCheck() {
   }
 }
 
-
 //------------------------------------------------------------
 // RENDERING
 //------------------------------------------------------------
-
 function draw() {
   ctx.clearRect(camera.x, camera.y, camera.width, camera.height);
   drawBackground();
@@ -701,7 +715,6 @@ function draw() {
   drawPlayers();
   //drawPlayer();
 }
-
 function drawRect(x, y, width, height, color) {
   ctx.fillStyle = color;
   ctx.fillRect(x, y, width, height);
@@ -759,7 +772,6 @@ function drawProjectiles() {
     drawCircle(projectiles[i].x, projectiles[i].y, projectiles[i].size, projectiles[i].color);
   }
 }
-
 function updateCamera() {
   drawCamera();
   camera.x = player.x - canvas.width / 2;
@@ -767,7 +779,6 @@ function updateCamera() {
   ctx.setTransform(1, 0, 0, 1, -camera.x, -camera.y);
   //console.log('camera:',camera.x, camera.y);
 }
-
 function drawCamera() {
   if (camera.effects.shake === true) {
     ctx.translate(Math.random() * camera.effects.shakeIntensity, Math.random() * camera.effects.shakeIntensity);
@@ -784,7 +795,6 @@ function drawCamera() {
     }
   }
 }
-
 function updateDebugDisplay(deltaTime) {
   // check if mode is single player or multiplayer
   if (mode === 'singlePlayer') {
@@ -837,15 +847,14 @@ function updateDebugDisplay(deltaTime) {
   colisionDisplay.innerHTML = 'collisions: ' + collision + '';
 }
 }
-
 //------------------------------------------------------------
 // GAME LOOP
 //------------------------------------------------------------
-
-// Fixed Fps - almost the same as in Unity
-
-const fixedDeltatime = 1 / 60;
 var deltaTime;
+var nSubsteps;
+var substepDeltaTime;
+const maxDeltaTime = 1/60;
+const maxSubsteps = 3;
 var currentTime;
 var lastTime = Date.now();
 var toConsume = 0;
@@ -859,19 +868,27 @@ function frame() {
   // Update controlls
   updateInput();
   
-  toConsume += deltaTime;
-  while (toConsume >= fixedDeltatime) {
-    updatePlayer(fixedDeltatime);
-    toConsume -= fixedDeltatime;
+  // physics
+  var nSubsteps = Math.max(
+    Math.ceil(deltaTime / maxDeltaTime),
+    maxSubsteps
+  );
+  var substepDeltaTime = Math.max(
+    deltaTime / nSubsteps,
+    maxDeltaTime
+  );
+  for (let i = 0; i < nSubsteps; i++) {
+    updatePlayer(substepDeltaTime)  
   }
 
+  
   // send plyerUpdate to server
   if (mode === 'multiPlayer') {
     socket.emit('playerUpdate', player);
   }
   
   // Update debug display's state
-  updateDebugDisplay(deltaTime + toConsume);
+  updateDebugDisplay(deltaTime);
   
   // Update camera's state
   updateCamera();
@@ -880,6 +897,3 @@ function frame() {
   draw();
   requestAnimationFrame(frame);
 };
-
-
-//test commit

@@ -28,17 +28,58 @@ const serverSettings = {
   'maxSpectators': 10,
   'maxPlayersPerRoom': 4,
 };
+var platforms = [
+  {x: 0, y: 700, width: 1000, height: 100, color: 'white'},
+  {x: -500, y: 450, width: 1000, height: 100, color: 'white'},
+  {x: -1000, y: 200, width: 1000, height: 100, color: 'white'},
+  {x: -600, y: -400, width: 100, height: 500, color: 'white'},
+  {x: -300, y: -400, width: 100, height: 500, color: 'white'},
+  {x: 580, y: 600, width: 100, height: 100, color: 'white'},
+  {x: 50, y: 300, width: 100, height: 100, color: 'white'},
+  {x: 1000, y: 600, width: 1000, height: 100, color: 'white'},
+  {x: 2000, y: 500, width: 1000, height: 100, color: 'white'},
+  {x: 3000, y: 400, width: 1000, height: 100, color: 'white'},
+  {x: 3000, y: 300, width: 100, height: 100, color: 'white'},
+  {x: 3000, y: 200, width: 100, height: 100, color: 'white'},
+  {x: 3000, y: 100, width: 100, height: 100, color: 'white'},
+  {x: 3000, y: 0, width: 100, height: 100, color: 'white'},
+  {x: 3000, y: -100, width: 100, height: 100, color: 'white'},
+  {x: 3000, y: -200, width: 100, height: 100, color: 'white'},
+  {x: 3000, y: -300, width: 100, height: 100, color: 'white'},
+  {x: 3000, y: -400, width: 100, height: 100, color: 'white'},
+  {x: 3000, y: -500, width: 100, height: 100, color: 'white'},
+  {x: 1000, y: -200, width: 500, height: 100, color: 'white'},
+  {x: 0, y: -300, width: 500, height: 100, color: 'white'},
+  {x: 2000, y: -400, width: 500, height: 100, color: 'white'},
+  {x: 4000, y: 300, width: 1000, height: 100, color: 'white'},
+  {x: 5000, y: 200, width: 1000, height: 100, color: 'white'},
+  {x: 6000, y: 100, width: 1000, height: 100, color: 'white'},
+  {x: 7000, y: 0, width: 1000, height: 100, color: 'white'},
+  {x: 8000, y: -100, width: 1000, height: 100, color: 'white'},
+  {x: 9000, y: -200, width: 1000, height: 100, color: 'white'},
+  {x: 10000, y: -300, width: 1000, height: 100, color: 'white'},
+  {x: 11000, y: -400, width: 1000, height: 100, color: 'white'},
+  {x: 12000, y: -500, width: 1000, height: 100, color: 'white'},
+  {x: 13000, y: -600, width: 1000, height: 100, color: 'white'},
+  {x: 14000, y: -700, width: 1000, height: 100, color: 'white'},
+  {x: 15000, y: -800, width: 1000, height: 100, color: 'white'},
+  {x: 16000, y: -900, width: 1000, height: 100, color: 'white'},
+
+  // box around the map
+  {x: -1000, y: -1000, width: 10, height: 4000 , color: '#000000'},
+
+]
 
 //---------------------------------
 // GLOBAL VARIABLES
 //---------------------------------
 
 var gameState = {}; //socket.id = {lots of info of the player} offical game state
-  playerInput = {}; //socket.id = {lots of info of the player} stuff that the client sends to the server
-  userInfos = {}; //socket.id = {other infromation what only the server knows}
-  userNames = []; //to store all usernames in use rn
-  spectators = []; //this is only a feature plan
-  rooms = []; // this on is also just a plan
+var playerInputs = {}; //socket.id = {lots of info of the player} stuff that the client sends to the server
+var userInfos = {}; //socket.id = {other infromation what only the server knows}
+var userNames = []; //to store all usernames in use rn
+var spectators = []; //this is only a feature plan
+var rooms = []; // this on is also just a plan
 
 //---------------------------------
 // INIT USER
@@ -64,16 +105,18 @@ function Player(name, id, room, x, y) {
   this.y = y;
   this.dX = 0;
   this.dY = 0;
-  this.left = false;
-  this.right = false;
-  this.jump = false;
+  this.input = {
+    left: false,
+    right: false,
+    jump: false
+  };
   this.collision = {
     top: false,
     bottom: false,
     left: false,
     right: false
   };
-  this.gravity = 9.81 * 0.1;
+  this.gravity = 9.81 * 0.00001;
   this.maxDX = 9;
   this.maxDY = 50;
   this.jumpForce = 10;
@@ -163,7 +206,8 @@ io.on('connection', function (socket) {
   });
 
   socket.on('playerUpdate', function (player) {
-    playerInputs[socket.id] = player;
+    playerInputs[socket.id] = player.input;
+    console.log('input', playerInputs);
   });
 
   socket.on('tabHidden', function () {
@@ -197,7 +241,7 @@ io.on('connection', function (socket) {
 
 function updateGame() {
   // update the game state according to the input (playerInput)
-  for (const [id, input] of Object.entries(playerInput)) {
+  for (const [id, input] of Object.entries(playerInputs)) {
     // Update player state based on input
     updatePlayer(gameState[id], input, deltaTime);
   }
@@ -206,13 +250,17 @@ function updateGame() {
 //---------------------------------
 // SERVER TICK
 //---------------------------------
+var lastTime = Date.now();
+var deltaTime = 0;
 setInterval(function () {
+  deltaTime = (Date.now() - lastTime);
   updateGame();
   for (const [id, player] of Object.entries(gameState)) {
     if (player.name) {
       io.to(id).emit('gameState', gameState);
     }
   }
+  lastTime = Date.now();
 }, 1000/60);
 
 function updatePlayer(player, input, deltaTime) {
@@ -263,6 +311,18 @@ function updatePlayer(player, input, deltaTime) {
 
   // check and handle if the player is colliding with a platform
   collisionCheck(player);
+}
+
+function clamp(val, min, max) {
+  return Math.min(max, Math.max(min, val));
+}
+
+function collisionAABB(rect1, rect2) {
+  return (
+    rect1.x < rect2.x+rect2.width &&
+    rect1.x+rect1.width > rect2.x &&
+    rect1.y < rect2.y+rect2.height &&
+    rect1.y+rect1.height > rect2.y)
 }
 
 function collisionCheck(player) {

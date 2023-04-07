@@ -71,7 +71,6 @@ var mouse = {
   clickX: undefined,
   clickY: undefined
 };
-
 var platforms = [
   {x: 0, y: 700, width: 1000, height: 100, color: 'white'},
   {x: -500, y: 450, width: 1000, height: 100, color: 'white'},
@@ -113,7 +112,6 @@ var platforms = [
   {x: -1000, y: -1000, width: 10, height: 4000 , color: '#000000'},
 
 ]
-
 var visuals = {
   background: {
     layer1: [
@@ -130,43 +128,7 @@ var visuals = {
     ]
   }
 };
-
-var player = {
-  name: 'player',
-  width: 20,
-  height: 20,
-  color: 'black',
-  x: 1600,
-  y: 0,
-  dX: 0,
-  dY: 0,
-  left: false,
-  right: false,
-  jump: false,
-  collision : {
-    top: false,
-    bottom: false,
-    left: false,
-    right: false
-  },
-  gravity: 1100, // gravity
-  maxDX: 600, // max horizontal speed
-  maxDY: 600, // max falling speed
-  jumpForce: 800, // big burst of speed
-  acceleration: 300 ,
-  friction: 300,
-  // Vertical states
-  grounded: false,
-  jumping: false,
-  falling: false,
-  doubleJumpingAllowed: true,
-  doubleJumping: false,
-  jumpCooldown: 0.3, // seconds
-  wallJumpingLeft: false,
-  wallJumpingRight: false,
-  wallJumping: false,
-  freemode: true,
-}
+var player = {} // the player object that the client controls
 mode = 'lobby';
 let render = true
 
@@ -196,7 +158,7 @@ var camera = {
   renderWidth: canvas.width,
   renderHeight: canvas.height,
 }
-let validName = {
+var validName = {
   'minLength': 3,
   'maxLength': 20,
   'anonymous': false,
@@ -650,6 +612,9 @@ function drawCamera() {
       camera.effects.zoom = false;
     }
   }
+  camera.x = player.x - canvas.width / 2;
+  camera.y = player.y - canvas.height / 2;
+  ctx.setTransform(1, 0, 0, 1, -camera.x, -camera.y);
 }
 function updateDebugDisplay(deltaTime) {
   // check if mode is single player or multiplayer
@@ -711,12 +676,13 @@ socket.on('gameState', function(data) {
   //console.log('gameState', data);
   officialState = data;
   player = officialState[socket.id];
+  console.log('my player', player);
 });
 
 function gameLoop() {
   // send input to server
   updateInput();
-  socket.emit('input', );
+  socket.emit('playerUpdate', player);
   draw();
   requestAnimationFrame(gameLoop);
 }

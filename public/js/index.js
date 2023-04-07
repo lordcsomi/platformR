@@ -53,7 +53,6 @@ const hotbarSlots = document.querySelectorAll('.hotbar-slot');
 
 var officialState = {};
 var predictedState = {};
-var players = {};
 var invalidPositions = [];
 var keys = [];
 var KEYS = {
@@ -229,6 +228,7 @@ window.onload = function() {
   if (getCookie('name') != '') {
     player.name = getCookie('name');
     console.log('loaded name from cookies', getCookie('name'));
+    nameInput.value = getCookie('name');
   } else {
     console.log('no name found in cookies');
   }
@@ -506,7 +506,7 @@ socket.on('namesInUse', function(data) {
 socket.on('nameSet', function(data) {
   console.log('name is set to:');
   const myName = data;
-  players[myId].name = myName;
+    myId = socket.id;
   console.log('------', myName, '------');
   // store it in cookie
   document.cookie = 'name=' + myName;
@@ -518,10 +518,7 @@ socket.on('startGame', function(data) {
   landingPage.style.display = 'none';
   game.style.display = 'block';
   hotbar.style.display = 'flex';
-  frame();
-});
-
-socket.on('gameState', function(data) {
+  requestAnimationFrame(gameLoop);
 });
 
 socket.on('invalidName', function(data) {
@@ -563,148 +560,6 @@ function updateInput() {
   }
 }
 
-function update() {
-  updateInput();
-  updatePlayer(deltaTime);
-  updateCamera();
-}
-
-function updatePlayer(deltaTime) {
-  // Force vectors for a step
-  var ddx = 0;
-  var ddy = 0;
-  // steal smart stuff from oindex.js
-  let wasleft = player.dX < 0;
-  let wasright = player.dX > 0;
-
-  // move the player according to the input
-  if (player.left) { // left
-    player.dX -= player.acceleration;
-  } else if (wasleft) {
-    player.dX += player.friction;
-  }
-  if (player.right) { // right
-    player.dX += player.acceleration;
-  } else if (wasright) {
-    player.dX -= player.friction;
-  } 
-
-  // Vertical physics
-  ddy += player.gravity;
-  if (player.jump && player.grounded) { // jump
-    player.dY -= player.jumpForce;
-    player.jumping = true;
-    player.doubleJumpingAllowed = true;
-    player.grounded = false;
-  }
-
-  // Update velocities
-  player.dX += ddx * deltaTime
-  player.dY += ddy * deltaTime
-  // Put a cap/Clamp max speed in both direciton
-  player.dX = clamp(player.dX, -player.maxDX, player.maxDX)
-  player.dY = clamp(player.dY, -player.maxDY, player.maxDY)
-  // Update position
-  player.x += player.dX * deltaTime
-  player.y += player.dY * deltaTime
-  // Handle terminal friction
-  // Check if direction is fluctuating frame by frame
-  // Meaning player reached "sticky friction"
-  if ((wasleft && player.dX > 0) || (wasright && player.dX < 0)) {
-    player.dX = 0;
-    ddx = 0;
-  }
-  
-  // check and handle if the player is colliding with a platform
-  collisionCheck();
-
-}
-
-function checkIFValidPosition(enity) { 
-  for (let platform of platforms) {
-    if (collisionAABB(enity, platform)) {
-      return false;
-    }
-  }
-  return true;
-}
-
-function collisionAABB(rect1, rect2) {
-  return (
-    rect1.x < rect2.x+rect2.width &&
-    rect1.x+rect1.width > rect2.x &&
-    rect1.y < rect2.y+rect2.height &&
-    rect1.y+rect1.height > rect2.y)
-}
-
-function clamp(val, min, max) {
-  return Math.min(max, Math.max(min, val));
-}
-
-function collisionCheck() {
-  player.collision.bottom = false;
-  player.collision.top = false;
-  player.collision.left = false;
-  player.collision.right = false;
-  player.grounded = false
-  
-  for (let platform of platforms) {
-    // Only check platform that have collision with player
-    if (!collisionAABB(player, platform)) {
-      continue;
-    }
-
-    // buffered positional datas
-    // player's coordinates cannot be buffered
-    // because otherwise 2 different collision check might want to 
-    // set its coordinate to 2 different values
-    let platX = platform.x;
-    let platY = platform.y;
-    let platW = platform.width;
-    let platH = platform.height;
-    
-    // Helper expressions
-    let interceptX = () => {return player.x + player.width > platX && player.x < platX + platW};
-    let interceptY = () => {return player.y + player.height > platY && player.y < platY + platH};
-
-    // check bottom collision
-    let pBottom = player.y + player.height;
-    if (pBottom > platY && pBottom <= platY + 10 && interceptX()) { // HACKY way of creating a nonexistent groundlayer on top of every platform, because it counts touching too which in this simple phase is almost the same as a resolved collision
-      player.collision.bottom = true;
-      player.y = platY - player.height;
-      player.dY = 0;
-      player.grounded = true;
-      player.doubleJumping = false;
-      player.wallJumping = false;
-    }
-    
-    // check top collision
-    let platBottom = platY + platH;
-    if (player.y >= platBottom - 10 && player.y <= platBottom && interceptX()) {
-      player.collision.top = true;
-      player.y = platY + platH;
-      // Early stage implementation of not falling
-      if (player.dY < 0) {
-        player.dY = 0;
-      }
-    }
-
-    // check right collision
-    let pRight = player.x + player.width;
-    if (pRight <= platX + 10 && pRight >= platX && interceptY()) {
-      player.collision.right = true;
-      player.x = platX - player.width;
-    }
-    
-    // check left collision
-    let platRight = platX + platW;
-    if (player.x >= platRight - 10 && player.x <= platRight && interceptY()) {
-      player.collision.left = true;
-      player.x = platX + platW;
-    }
-  }
-}
-
 //------------------------------------------------------------
 // RENDERING
 //------------------------------------------------------------
@@ -713,7 +568,8 @@ function draw() {
   drawBackground();
   drawPlatforms();
   drawPlayers();
-  //drawPlayer();
+  drawCamera();
+  //console.log('rendered');
 }
 function drawRect(x, y, width, height, color) {
   ctx.fillStyle = color;
@@ -757,7 +613,7 @@ function drawPlayer() {
 }
 function drawPlayers() {
   // convert players dictionary to array of values
-  var playersArr = Object.values(players);
+  var playersArr = Object.values(officialState);
 
   // loop through all players and draw them
   for (var i = 0; i < playersArr.length; i++) {
@@ -847,53 +703,20 @@ function updateDebugDisplay(deltaTime) {
   colisionDisplay.innerHTML = 'collisions: ' + collision + '';
 }
 }
+
 //------------------------------------------------------------
 // GAME LOOP
 //------------------------------------------------------------
-var deltaTime;
-var nSubsteps;
-var substepDeltaTime;
-const maxDeltaTime = 1/60;
-const maxSubsteps = 3;
-var currentTime;
-var lastTime = Date.now();
-var toConsume = 0;
+socket.on('gameState', function(data) {
+  //console.log('gameState', data);
+  officialState = data;
+  player = officialState[socket.id];
+});
 
-function frame() {
-  currentTime = Date.now();
-  // Date.now() gives miliseconds -> conversion into seconds
-  deltaTime = (currentTime - lastTime) / 1000;
-  lastTime = currentTime;
-
-  // Update controlls
+function gameLoop() {
+  // send input to server
   updateInput();
-  
-  // physics
-  var nSubsteps = Math.max(
-    Math.ceil(deltaTime / maxDeltaTime),
-    maxSubsteps
-  );
-  var substepDeltaTime = Math.max(
-    deltaTime / nSubsteps,
-    maxDeltaTime
-  );
-  for (let i = 0; i < nSubsteps; i++) {
-    updatePlayer(substepDeltaTime)  
-  }
-
-  
-  // send plyerUpdate to server
-  if (mode === 'multiPlayer') {
-    socket.emit('playerUpdate', player);
-  }
-  
-  // Update debug display's state
-  updateDebugDisplay(deltaTime);
-  
-  // Update camera's state
-  updateCamera();
-  
-  // Do the render stuff
+  socket.emit('input', );
   draw();
-  requestAnimationFrame(frame);
-};
+  requestAnimationFrame(gameLoop);
+}

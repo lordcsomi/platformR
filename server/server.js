@@ -6,7 +6,6 @@ const server = require('http').Server(app);
 const io = require('socket.io')(server);
 require('dotenv').config();
 
-// Settings from .env file 
 const port = process.env.PORT || 3000;
 const host = process.env.HOST || 'localhost';
 const version = process.env.VERSION || '0.0.0';
@@ -24,7 +23,6 @@ const validName = {
   'anonymous': false,
   'allowedCharacters': 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_ -'
 };
-// server settings
 const serverSettings = {
   'maxPlayers': 10,
   'maxSpectators': 10,
@@ -36,7 +34,7 @@ const serverSettings = {
 //---------------------------------
 
 var gameState = {}; //socket.id = {lots of info of the player} offical game state
-  players = {}; //socket.id = {lots of info of the player} stuff that the client sends to the server
+  playerInput = {}; //socket.id = {lots of info of the player} stuff that the client sends to the server
   userInfos = {}; //socket.id = {other infromation what only the server knows}
   userNames = []; //to store all usernames in use rn
   spectators = []; //this is only a feature plan
@@ -105,50 +103,35 @@ server.listen(port, function () {
   console.log(`Server listening on http://${ip}:3000`);
 });
 
-
-// socket connection
 io.on('connection', function (socket) {
-  // detect if the ip is banned
   if (bannedIPs.includes(socket.handshake.address)) {
     console.log('banned ip tried to connect:', socket.handshake.address);
     socket.emit('forceDiscConnect', true);
     socket.disconnect();
     return;
   }
-  // if max players is reached
   else if (userNames.length >= maxPlayers) {
     console.log('max players reached:', socket.handshake.address);
     socket.disconnect();
     return;
   }
-  // if max connections is reached
   else if (io.engine.clientsCount >= maxConnections) {
     console.log('max connections reached:', socket.handshake.address);
     socket.disconnect();
     return;
   }
-  // log connection
-  console.log('a user connected id:', socket.id, 'ip:', socket.handshake.address);
   const userAgent = socket.handshake.headers['user-agent'];
   const isMobile = /Mobile/.test(userAgent);
+  userInfos[socket.id] = new User('', socket.id, socket.handshake.address, '', isMobile);
+  console.log('a user connected id:', socket.id, 'ip:', socket.handshake.address);
 
-  // save user info
-  userInfos[socket.id] = new User('name not set yet', socket.id, socket.handshake.address, 'dont know yet', isMobile);
-
-  // listen for screen size
   socket.on('screenSize', function (screen) {
     userInfos[socket.id].screen = screen;
   });
 
-  //send information for name validation
   socket.emit('NameRules', validName);
-
-  // send names in use to new player
   socket.emit('namesInUse', userNames);
-
-  // setName
   socket.on('setName', function (name) {
-    // check if name is valid
     if (name.length < validName.minLength || name.length > validName.maxLength) {
       socket.emit('invalidName', 'Name must be between ' + validName.minLength + ' and ' + validName.maxLength + ' characters long.');
       return;
@@ -163,17 +146,13 @@ io.on('connection', function (socket) {
         return;
       }
     }
-    // check if name is already in use
     if (userNames.includes(name)) {
       socket.emit('invalidName', 'Name is already in use.');
       return;
     }
-    // create new player and update userInfos
     userInfos[socket.id].name = name;
     userNames.push(name);
     gameState[socket.id] = new Player(name, socket.id, 'lobby', 0, 0);
-
-    // send name to all players
     socket.emit('gameState', gameState);
     socket.emit('nameSet', name);
     io.emit('namesInUse', userNames);
@@ -183,54 +162,184 @@ io.on('connection', function (socket) {
     socket.emit('startGame', {});
   });
 
-  // on playerUpdate
   socket.on('playerUpdate', function (player) {
-    // check if player is in players{}
-    if (players[socket.id]) {
-      // update player
-      players[socket.id] = player;
-    }
-    else {
-      // add player
-      players[socket.id] = player;
-    }
+    playerInputs[socket.id] = player;
   });
 
-  // on tabHidden
   socket.on('tabHidden', function () {
     userInfos[socket.id].active = false;
   });
 
-  // on tabVisible
   socket.on('tabVisible', function () {
     userInfos[socket.id].active = true;
   });
   
-  // disconnect
   socket.on('disconnect', function () {
-    // remove player and log
-    console.log('user disconnected:', socket.id);
-    
-    // send to all clients except the disconected user the namesInUse
+    if (userInfos[socket.id].name) {
+      console.log('--- player left game:', userInfos[socket.id].name);
+      userNames.splice(userNames.indexOf(userInfos[socket.id].name), 1);
+      delete gameState[socket.id];
+    } else {
+      console.log('a user disconnected id:', socket.id, 'ip:', socket.handshake.address);
+    }
+    delete userInfos[socket.id];
     io.emit('namesInUse', userNames);
   });
 
-  // invalid positions
   socket.on('invalidPositions', function (invalidPositions) {
     invalidPositionsToFile('./temporary/invalidPositions.txt', invalidPositions, ';');
   });
 });
 
 //---------------------------------
+// UPDATE PLAYERS
+//---------------------------------
+
+function updateGame() {
+  // update the game state according to the input (playerInput)
+  for (const [id, input] of Object.entries(playerInput)) {
+    // Update player state based on input
+    updatePlayer(gameState[id], input, deltaTime);
+  }
+};
+
+//---------------------------------
 // SERVER TICK
 //---------------------------------
 setInterval(function () {
   updateGame();
-  io.emit('gameState', gameState);
+  for (const [id, player] of Object.entries(gameState)) {
+    if (player.name) {
+      io.to(id).emit('gameState', gameState);
+    }
+  }
 }, 1000/60);
 
-function updateGame() {
+function updatePlayer(player, input, deltaTime) {
+  // Force vectors for a step
+  let ddx = 0;
+  let ddy = 0;
+  // steal smart stuff from oindex.js
+  let wasleft = player.dX < 0;
+  let wasright = player.dX > 0;
 
+  // move the player according to the input
+  if (input.left) { // left
+    player.dX -= player.acceleration;
+  } else if (wasleft) {
+    player.dX += player.friction;
+  }
+  if (input.right) { // right
+    player.dX += player.acceleration;
+  } else if (wasright) {
+    player.dX -= player.friction;
+  }
+
+  // Vertical physics
+  ddy += player.gravity;
+  if (input.jump && player.grounded) { // jump
+    player.dY -= player.jumpForce;
+    player.jumping = true;
+    player.doubleJumpingAllowed = true;
+    player.grounded = false;
+  }
+
+  // Update velocities
+  player.dX += ddx * deltaTime
+  player.dY += ddy * deltaTime
+  // Put a cap/Clamp max speed in both directions
+  player.dX = clamp(player.dX, -player.maxDX, player.maxDX)
+  player.dY = clamp(player.dY, -player.maxDY, player.maxDY)
+  // Update position
+  player.x += player.dX * deltaTime
+  player.y += player.dY * deltaTime
+  // Handle terminal friction
+  // Check if direction is fluctuating frame by frame
+  // Meaning player reached "sticky friction"
+  if ((wasleft && player.dX > 0) || (wasright && player.dX < 0)) {
+    player.dX = 0;
+    ddx = 0;
+  }
+
+  // check and handle if the player is colliding with a platform
+  collisionCheck(player);
+}
+
+function collisionCheck(player) {
+  player.collision.bottom = false;
+  player.collision.top = false;
+  player.collision.left = false;
+  player.collision.right = false;
+  player.grounded = false;
+
+  for (let platform of platforms) {
+    // Only check platform that have collision with player
+    if (!collisionAABB(player, platform)) {
+      continue;
+    }
+
+    // buffered positional datas
+    // player's coordinates cannot be buffered
+    // because otherwise 2 different collision check might want to
+    // set its coordinate to 2 different values
+    let platX = platform.x;
+    let platY = platform.y;
+    let platW = platform.width;
+    let platH = platform.height;
+
+    // Helper expressions
+    let interceptX = () => {
+      return player.x + player.width > platX && player.x < platX + platW;
+    };
+    let interceptY = () => {
+      return player.y + player.height > platY && player.y < platY + platH;
+    };
+
+    // check bottom collision
+    let pBottom = player.y + player.height;
+    if (pBottom > platY && pBottom <= platY + 10 && interceptX()) {
+      // HACKY way of creating a nonexistent groundlayer on top of every platform, because it counts touching too which in this simple phase is almost the same as a resolved collision
+      player.collision.bottom = true;
+      player.y = platY - player.height;
+      player.dY = 0;
+      player.grounded = true;
+      player.doubleJumping = false;
+      player.wallJumping = false;
+    }
+
+    // check top collision
+    let platBottom = platY + platH;
+    if (player.y >= platBottom - 10 && player.y <= platBottom && interceptX()) {
+      player.collision.top = true;
+      player.y = platY + platH;
+      // Early stage implementation of not falling
+      if (player.dY < 0) {
+        player.dY = 0;
+      }
+    }
+
+    // check right collision
+    let pRight = player.x + player.width;
+    if (pRight <= platX + 10 && pRight >= platX && interceptY()) {
+      player.collision.right = true;
+      player.x = platX - player.width;
+    }
+
+    // check left collision
+    let platRight = platX + platW;
+    if (player.x >= platRight - 10 && player.x <= platRight && interceptY()) {
+      player.collision.left = true;
+      player.x = platX + platW;
+    }
+  }
+
+  // update gameState object
+  gameState[player.id].collision = player.collision;
+  gameState[player.id].grounded = player.grounded;
+  gameState[player.id].x = player.x;
+  gameState[player.id].y = player.y;
+  gameState[player.id].dX = player.dX;
+  gameState[player.id].dY = player.dY;
 }
 
 //---------------------------------

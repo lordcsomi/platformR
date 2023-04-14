@@ -116,11 +116,11 @@ function Player(name, id, room, x, y) {
     left: false,
     right: false
   };
-  this.gravity = 9.81 * 0.00001;
-  this.maxDX = 9;
-  this.maxDY = 50;
-  this.jumpForce = 10;
-  this.acceleration = 0.8;
+  this.gravity = 9.81 * 0.0001;
+  this.maxDX = 5;
+  this.maxDY = 10;
+  this.jumpForce = 10 * 0.06;
+  this.acceleration = 0.8 * 0.01;
   this.friction = 0.9;
   this.grounded = false;
   this.jumping = false;
@@ -132,6 +132,8 @@ function Player(name, id, room, x, y) {
   this.wallJumping = false;
   this.freemode = false;
   this.latency = 0;
+  this.state = 'joining';
+  this.health = 100;
 }
 
 //--------------------------------
@@ -196,6 +198,7 @@ io.on('connection', function (socket) {
     userInfos[socket.id].name = name;
     userNames.push(name);
     gameState[socket.id] = new Player(name, socket.id, 'lobby', 0, 0);
+    gameState[socket.id].state = 'inGame';
     socket.emit('gameState', gameState);
     socket.emit('nameSet', name);
     io.emit('namesInUse', userNames);
@@ -207,7 +210,6 @@ io.on('connection', function (socket) {
 
   socket.on('playerUpdate', function (player) {
     playerInputs[socket.id] = player.input;
-    console.log('input', playerInputs);
   });
 
   socket.on('tabHidden', function () {
@@ -243,6 +245,7 @@ function updateGame() {
   // update the game state according to the input (playerInput)
   for (const [id, input] of Object.entries(playerInputs)) {
     // Update player state based on input
+    //console.log('update player', id, input);
     updatePlayer(gameState[id], input, deltaTime);
   }
 };
@@ -264,53 +267,55 @@ setInterval(function () {
 }, 1000/60);
 
 function updatePlayer(player, input, deltaTime) {
-  // Force vectors for a step
-  let ddx = 0;
-  let ddy = 0;
-  // steal smart stuff from oindex.js
-  let wasleft = player.dX < 0;
-  let wasright = player.dX > 0;
+  if (player) {
+    // Force vectors for a step
+    let ddx = 0;
+    let ddy = 0;
+    // steal smart stuff from oindex.js
+    let wasleft = player.dX < 0;
+    let wasright = player.dX > 0;
 
-  // move the player according to the input
-  if (input.left) { // left
-    player.dX -= player.acceleration;
-  } else if (wasleft) {
-    player.dX += player.friction;
-  }
-  if (input.right) { // right
-    player.dX += player.acceleration;
-  } else if (wasright) {
-    player.dX -= player.friction;
-  }
+    // move the player according to the input
+    if (input.left) { // left
+      player.dX -= player.acceleration;
+    } else if (wasleft) {
+      player.dX += player.friction;
+    }
+    if (input.right) { // right
+      player.dX += player.acceleration;
+    } else if (wasright) {
+      player.dX -= player.friction;
+    }
 
-  // Vertical physics
-  ddy += player.gravity;
-  if (input.jump && player.grounded) { // jump
-    player.dY -= player.jumpForce;
-    player.jumping = true;
-    player.doubleJumpingAllowed = true;
-    player.grounded = false;
-  }
+    // Vertical physics
+    ddy += player.gravity;
+    if (input.jump && player.grounded) { // jump
+      player.dY -= player.jumpForce;
+      player.jumping = true;
+      player.doubleJumpingAllowed = true;
+      player.grounded = false;
+    }
 
-  // Update velocities
-  player.dX += ddx * deltaTime
-  player.dY += ddy * deltaTime
-  // Put a cap/Clamp max speed in both directions
-  player.dX = clamp(player.dX, -player.maxDX, player.maxDX)
-  player.dY = clamp(player.dY, -player.maxDY, player.maxDY)
-  // Update position
-  player.x += player.dX * deltaTime
-  player.y += player.dY * deltaTime
-  // Handle terminal friction
-  // Check if direction is fluctuating frame by frame
-  // Meaning player reached "sticky friction"
-  if ((wasleft && player.dX > 0) || (wasright && player.dX < 0)) {
-    player.dX = 0;
-    ddx = 0;
-  }
+    // Update velocities
+    player.dX += ddx * deltaTime
+    player.dY += ddy * deltaTime
+    // Put a cap/Clamp max speed in both directions
+    player.dX = clamp(player.dX, -player.maxDX, player.maxDX)
+    player.dY = clamp(player.dY, -player.maxDY, player.maxDY)
+    // Update position
+    player.x += player.dX * deltaTime
+    player.y += player.dY * deltaTime
+    // Handle terminal friction
+    // Check if direction is fluctuating frame by frame
+    // Meaning player reached "sticky friction"
+    if ((wasleft && player.dX > 0) || (wasright && player.dX < 0)) {
+      player.dX = 0;
+      ddx = 0;
+    }
 
-  // check and handle if the player is colliding with a platform
-  collisionCheck(player);
+    // check and handle if the player is colliding with a platform
+    collisionCheck(player);
+  }
 }
 
 function clamp(val, min, max) {

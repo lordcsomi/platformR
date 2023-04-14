@@ -191,6 +191,9 @@ window.onload = function() {
     player.name = getCookie('name');
     console.log('loaded name from cookies', getCookie('name'));
     nameInput.value = getCookie('name');
+    if (nameInput.value == 'undefined') {
+      nameInput.value = '';
+    }
   } else {
     console.log('no name found in cookies');
   }
@@ -506,19 +509,19 @@ socket.on('disconnect', function(data) {
 
 function updateInput() {
   if (keys[37] || keys[65]) { // left
-    player.left = true;
+    player.input.left = true;
   } else {
-    player.left = false;
+    player.input.left = false;
   }
   if (keys[39] || keys[68]) { // right
-    player.right = true;
+    player.input.right = true;
   } else {
-    player.right = false;
+    player.input.right = false;
   }
   if (keys[38] || keys[87] || keys[32]) { // up
-    player.jump = true;
+    player.input.jump = true;
   } else {
-    player.jump = false;
+    player.input.jump = false;
   }
 }
 
@@ -619,34 +622,12 @@ function drawCamera() {
 function updateDebugDisplay(deltaTime) {
   // check if mode is single player or multiplayer
   if (mode === 'singlePlayer') {
-    nameDebug.innerHTML = myName;// + ' id:  ' + myId; //+ 'ip: ' + myIp;
-    position.innerHTML = 'x: ' + player.x.toFixed(3) + ', y: ' + player.y.toFixed(3) + '';
-    fps.innerHTML = 'fps: ' + (1 / deltaTime).toFixed(0);
-    velocity.innerHTML = 'dX: ' + player.dX.toFixed(2) + ', dY: ' + player.dY.toFixed(2) + '';
-    grounded.innerHTML = 'grounded: ' + player.grounded + '';
-    jumping.innerHTML = 'jumping: ' + player.jumping + '';
-    doubleJumping.innerHTML = 'doubleJumping: ' + player.doubleJumping + '';
-    wallJumpingLeft.innerHTML = 'wallJumpingLeft: ' + player.wallJumpingLeft + '';
-    wallJumpingRight.innerHTML = 'wallJumpingRight: ' + player.wallJumpingRight + '';
-    var collision = [];
-    if (player.collision.right === true) {
-      collision.push('right');
-    }
-    if (player.collision.left === true) {
-      collision.push('left');
-    }
-    if (player.collision.top === true) {
-      collision.push('top');
-    }
-    if (player.collision.bottom === true) {
-      collision.push('bottom');
-    }
-    colisionDisplay.innerHTML = 'collisions: ' + collision + '';
+    
 } else if (mode === 'multiPlayer') {
-  nameDebug.innerHTML = myName + ' id:  ' + myId; //+ 'ip: ' + myIp;
-  position.innerHTML = 'x: ' + player.x + ', y: ' + player.y + '';
-  fps.innerHTML = 'fps: ' + (1 / deltaTime).toFixed(0);
-  velocity.innerHTML = 'dX: ' + player.dX.toFixed(2) + ', dY: ' + player.dY.toFixed(2) + '';
+  nameDebug.innerHTML = 'name: ' + player.name + '';
+  position.innerHTML = 'x: ' + player.x.toFixed(2) + ', y: ' + player.y.toFixed(2) + '';
+  fps.innerHTML = 'fps: ' + (1000 / deltaTime).toFixed(2) + '';
+  velocity.innerHTML = 'vx: ' + player.vx.toFixed(2) + ', vy: ' + player.vy.toFixed(2) + '';
   grounded.innerHTML = 'grounded: ' + player.grounded + '';
   jumping.innerHTML = 'jumping: ' + player.jumping + '';
   doubleJumping.innerHTML = 'doubleJumping: ' + player.doubleJumping + '';
@@ -676,13 +657,12 @@ socket.on('gameState', function(data) {
   //console.log('gameState', data);
   officialState = data;
   player = officialState[socket.id];
-  console.log('my player', player);
 });
 
 function gameLoop() {
   // send input to server
   updateInput();
   socket.emit('playerUpdate', player);
-  draw();
+   draw();
   requestAnimationFrame(gameLoop);
 }

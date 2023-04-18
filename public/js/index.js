@@ -10,6 +10,11 @@ ctx.scale(1, 1);
 canvas.width = window.innerWidth;
 canvas.height = window.innerHeight;
 
+// alice hulyesege
+function print(cucc) {
+  console.log(cucc);
+}
+
 //debug display
 const stats = document.getElementById('stats');
 const nameDebug = document.getElementById('nameInput');
@@ -78,7 +83,7 @@ var platforms = [
   {x: -600, y: -400, width: 100, height: 500, color: 'white'},
   {x: -300, y: -400, width: 100, height: 500, color: 'white'},
   {x: 580, y: 600, width: 100, height: 100, color: 'white'},
-  {x: 50, y: 300, width: 100, height: 100, color: 'white'},
+  {x: 50, y: 300, width: 100, height: 100, color: 'green'},
   {x: 1000, y: 600, width: 1000, height: 100, color: 'white'},
   {x: 2000, y: 500, width: 1000, height: 100, color: 'white'},
   {x: 3000, y: 400, width: 1000, height: 100, color: 'white'},
@@ -620,6 +625,8 @@ function drawCamera() {
   ctx.setTransform(1, 0, 0, 1, -camera.x, -camera.y);
 }
 function updateDebugDisplay(deltaTime) {
+  console.log("mode: ", mode);
+  mode = "multiPlayer"
   // check if mode is single player or multiplayer
   if (mode === 'singlePlayer') {
     
@@ -627,7 +634,7 @@ function updateDebugDisplay(deltaTime) {
   nameDebug.innerHTML = 'name: ' + player.name + '';
   position.innerHTML = 'x: ' + player.x.toFixed(2) + ', y: ' + player.y.toFixed(2) + '';
   fps.innerHTML = 'fps: ' + (1000 / deltaTime).toFixed(2) + '';
-  velocity.innerHTML = 'vx: ' + player.vx.toFixed(2) + ', vy: ' + player.vy.toFixed(2) + '';
+  velocity.innerHTML = 'dX: ' + player.dX.toFixed(2) + ', dY: ' + player.dY.toFixed(2) + '';
   grounded.innerHTML = 'grounded: ' + player.grounded + '';
   jumping.innerHTML = 'jumping: ' + player.jumping + '';
   doubleJumping.innerHTML = 'doubleJumping: ' + player.doubleJumping + '';
@@ -663,6 +670,7 @@ function gameLoop() {
   // send input to server
   updateInput();
   socket.emit('playerUpdate', player);
-   draw();
+  draw();
+  updateDebugDisplay(player.deltaTime);
   requestAnimationFrame(gameLoop);
 }

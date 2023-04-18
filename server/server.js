@@ -1,6 +1,7 @@
 const express = require('express');
 const { Socket } = require('socket.io');
 const os = require('os');
+const { log } = require('console');
 const app = express();
 const server = require('http').Server(app);
 const io = require('socket.io')(server);
@@ -35,7 +36,7 @@ var platforms = [
   {x: -600, y: -400, width: 100, height: 500, color: 'white'},
   {x: -300, y: -400, width: 100, height: 500, color: 'white'},
   {x: 580, y: 600, width: 100, height: 100, color: 'white'},
-  {x: 50, y: 300, width: 100, height: 100, color: 'white'},
+  {x: 50, y: 300, width: 100, height: 100, color: 'green'},
   {x: 1000, y: 600, width: 1000, height: 100, color: 'white'},
   {x: 2000, y: 500, width: 1000, height: 100, color: 'white'},
   {x: 3000, y: 400, width: 1000, height: 100, color: 'white'},
@@ -116,12 +117,12 @@ function Player(name, id, room, x, y) {
     left: false,
     right: false
   };
-  this.gravity = 9.81 * 0.0001;
-  this.maxDX = 5;
-  this.maxDY = 10;
-  this.jumpForce = 10 * 0.06;
-  this.acceleration = 0.8 * 0.01;
-  this.friction = 0.9;
+  this.gravity = 9.81*45;
+  this.maxDX = 600;
+  this.maxDY = 1000;
+  this.jumpForce = 410*660;
+  this.acceleration = 28; 
+  this.friction = 29;
   this.grounded = false;
   this.jumping = false;
   this.doubleJumpingAllowed = true;
@@ -134,6 +135,9 @@ function Player(name, id, room, x, y) {
   this.latency = 0;
   this.state = 'joining';
   this.health = 100;
+
+  // ezt majd vedd ki
+  this.deltaTime = 1/60;
 }
 
 //--------------------------------
@@ -253,24 +257,30 @@ function updateGame() {
 //---------------------------------
 // SERVER TICK
 //---------------------------------
+// Delta time alap mertekegysege: ms
+// az idealis 1/60 seconds ami milisecondben 16.66
 var lastTime = Date.now();
 var deltaTime = 0;
 setInterval(function () {
-  deltaTime = (Date.now() - lastTime);
+  // physics calculated with seconds deltatime so
+  // setting physics values is less pain in the ass
+  //deltaTime = (Date.now() - lastTime) / 1000;
+  deltaTime = 1/60
   updateGame();
   for (const [id, player] of Object.entries(gameState)) {
     if (player.name) {
       io.to(id).emit('gameState', gameState);
     }
   }
-  lastTime = Date.now();
+  //lastTime = Date.now();
 }, 1000/60);
 
 function updatePlayer(player, input, deltaTime) {
   if (player) {
+    //console.log(deltaTime)
     // Force vectors for a step
     let ddx = 0;
-    let ddy = 0;
+    let ddy = player.gravity;
     // steal smart stuff from oindex.js
     let wasleft = player.dX < 0;
     let wasright = player.dX > 0;
@@ -310,7 +320,6 @@ function updatePlayer(player, input, deltaTime) {
     // Meaning player reached "sticky friction"
     if ((wasleft && player.dX > 0) || (wasright && player.dX < 0)) {
       player.dX = 0;
-      ddx = 0;
     }
 
     // check and handle if the player is colliding with a platform

@@ -1,13 +1,13 @@
 {
-  "name": "platformer",
-  "version": "1.0.0",
-  "description": "",
+  "name": "platformr",
+  "version": "0.5.0",
+  "description": "a 2d platformer game",
   "main": "index.js",
   "scripts": {
     "start": "node ./server/server.js"
   },
   "keywords": [],
-  "author": "",
+  "author": "Csomós Ádám",
   "license": "ISC",
   "dependencies": {
     "dotenv": "^16.0.3",

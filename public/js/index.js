@@ -10,6 +10,11 @@ ctx.scale(1, 1);
 canvas.width = window.innerWidth;
 canvas.height = window.innerHeight;
 
+// alice hulyesege
+function print(cucc) {
+  console.log(cucc);
+}
+
 //debug display
 const stats = document.getElementById('stats');
 const nameDebug = document.getElementById('nameInput');
@@ -71,7 +76,6 @@ var mouse = {
   clickX: undefined,
   clickY: undefined
 };
-
 var platforms = [
   {x: 0, y: 700, width: 1000, height: 100, color: 'white'},
   {x: -500, y: 450, width: 1000, height: 100, color: 'white'},
@@ -79,7 +83,7 @@ var platforms = [
   {x: -600, y: -400, width: 100, height: 500, color: 'white'},
   {x: -300, y: -400, width: 100, height: 500, color: 'white'},
   {x: 580, y: 600, width: 100, height: 100, color: 'white'},
-  {x: 50, y: 300, width: 100, height: 100, color: 'white'},
+  {x: 50, y: 300, width: 100, height: 100, color: 'green'},
   {x: 1000, y: 600, width: 1000, height: 100, color: 'white'},
   {x: 2000, y: 500, width: 1000, height: 100, color: 'white'},
   {x: 3000, y: 400, width: 1000, height: 100, color: 'white'},
@@ -113,7 +117,6 @@ var platforms = [
   {x: -1000, y: -1000, width: 10, height: 4000 , color: '#000000'},
 
 ]
-
 var visuals = {
   background: {
     layer1: [
@@ -130,43 +133,7 @@ var visuals = {
     ]
   }
 };
-
-var player = {
-  name: 'player',
-  width: 20,
-  height: 20,
-  color: 'black',
-  x: 1600,
-  y: 0,
-  dX: 0,
-  dY: 0,
-  left: false,
-  right: false,
-  jump: false,
-  collision : {
-    top: false,
-    bottom: false,
-    left: false,
-    right: false
-  },
-  gravity: 1100, // gravity
-  maxDX: 600, // max horizontal speed
-  maxDY: 600, // max falling speed
-  jumpForce: 800, // big burst of speed
-  acceleration: 300 ,
-  friction: 300,
-  // Vertical states
-  grounded: false,
-  jumping: false,
-  falling: false,
-  doubleJumpingAllowed: true,
-  doubleJumping: false,
-  jumpCooldown: 0.3, // seconds
-  wallJumpingLeft: false,
-  wallJumpingRight: false,
-  wallJumping: false,
-  freemode: true,
-}
+var player = {} // the player object that the client controls
 mode = 'lobby';
 let render = true
 
@@ -196,7 +163,7 @@ var camera = {
   renderWidth: canvas.width,
   renderHeight: canvas.height,
 }
-let validName = {
+var validName = {
   'minLength': 3,
   'maxLength': 20,
   'anonymous': false,
@@ -229,6 +196,9 @@ window.onload = function() {
     player.name = getCookie('name');
     console.log('loaded name from cookies', getCookie('name'));
     nameInput.value = getCookie('name');
+    if (nameInput.value == 'undefined') {
+      nameInput.value = '';
+    }
   } else {
     console.log('no name found in cookies');
   }
@@ -544,19 +514,19 @@ socket.on('disconnect', function(data) {
 
 function updateInput() {
   if (keys[37] || keys[65]) { // left
-    player.left = true;
+    player.input.left = true;
   } else {
-    player.left = false;
+    player.input.left = false;
   }
   if (keys[39] || keys[68]) { // right
-    player.right = true;
+    player.input.right = true;
   } else {
-    player.right = false;
+    player.input.right = false;
   }
   if (keys[38] || keys[87] || keys[32]) { // up
-    player.jump = true;
+    player.input.jump = true;
   } else {
-    player.jump = false;
+    player.input.jump = false;
   }
 }
 
@@ -650,37 +620,20 @@ function drawCamera() {
       camera.effects.zoom = false;
     }
   }
+  camera.x = player.x - canvas.width / 2;
+  camera.y = player.y - canvas.height / 2;
+  ctx.setTransform(1, 0, 0, 1, -camera.x, -camera.y);
 }
 function updateDebugDisplay(deltaTime) {
+  console.log("mode: ", mode);
+  mode = "multiPlayer"
   // check if mode is single player or multiplayer
   if (mode === 'singlePlayer') {
-    nameDebug.innerHTML = myName;// + ' id:  ' + myId; //+ 'ip: ' + myIp;
-    position.innerHTML = 'x: ' + player.x.toFixed(3) + ', y: ' + player.y.toFixed(3) + '';
-    fps.innerHTML = 'fps: ' + (1 / deltaTime).toFixed(0);
-    velocity.innerHTML = 'dX: ' + player.dX.toFixed(2) + ', dY: ' + player.dY.toFixed(2) + '';
-    grounded.innerHTML = 'grounded: ' + player.grounded + '';
-    jumping.innerHTML = 'jumping: ' + player.jumping + '';
-    doubleJumping.innerHTML = 'doubleJumping: ' + player.doubleJumping + '';
-    wallJumpingLeft.innerHTML = 'wallJumpingLeft: ' + player.wallJumpingLeft + '';
-    wallJumpingRight.innerHTML = 'wallJumpingRight: ' + player.wallJumpingRight + '';
-    var collision = [];
-    if (player.collision.right === true) {
-      collision.push('right');
-    }
-    if (player.collision.left === true) {
-      collision.push('left');
-    }
-    if (player.collision.top === true) {
-      collision.push('top');
-    }
-    if (player.collision.bottom === true) {
-      collision.push('bottom');
-    }
-    colisionDisplay.innerHTML = 'collisions: ' + collision + '';
+    
 } else if (mode === 'multiPlayer') {
-  nameDebug.innerHTML = myName + ' id:  ' + myId; //+ 'ip: ' + myIp;
-  position.innerHTML = 'x: ' + player.x + ', y: ' + player.y + '';
-  fps.innerHTML = 'fps: ' + (1 / deltaTime).toFixed(0);
+  nameDebug.innerHTML = 'name: ' + player.name + '';
+  position.innerHTML = 'x: ' + player.x.toFixed(2) + ', y: ' + player.y.toFixed(2) + '';
+  fps.innerHTML = 'fps: ' + (1000 / deltaTime).toFixed(2) + '';
   velocity.innerHTML = 'dX: ' + player.dX.toFixed(2) + ', dY: ' + player.dY.toFixed(2) + '';
   grounded.innerHTML = 'grounded: ' + player.grounded + '';
   jumping.innerHTML = 'jumping: ' + player.jumping + '';
@@ -716,7 +669,8 @@ socket.on('gameState', function(data) {
 function gameLoop() {
   // send input to server
   updateInput();
-  socket.emit('input', );
+  socket.emit('playerUpdate', player);
   draw();
+  updateDebugDisplay(player.deltaTime);
   requestAnimationFrame(gameLoop);
 }

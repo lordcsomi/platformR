@@ -745,6 +745,7 @@ function collisionCheck(player) {
     if (pRight <= platX + 10 && pRight >= platX && interceptY()) {
       player.collision.right = true;
       player.x = platX - player.width;
+      player.dX = 0;
     }
 
     // check left collision
@@ -752,6 +753,7 @@ function collisionCheck(player) {
     if (player.x >= platRight - 10 && player.x <= platRight && interceptY()) {
       player.collision.left = true;
       player.x = platX + platW;
+      player.dX = 0;
     }
   }
 

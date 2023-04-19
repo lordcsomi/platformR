@@ -134,8 +134,13 @@ var visuals = {
   }
 };
 var player = {} // the player object that the client controls
-mode = 'lobby';
-let render = true
+var mode = 'lobby';
+var render = true
+var lastUpdate = Date.now();
+var lastRender = Date.now();
+var renders = 0;
+var serverUpdate = 0;
+var fpsInterval = 1000; // 1 second
 
 var camera = {
   x: 0,
@@ -450,12 +455,9 @@ window.addEventListener('keydown', (event) => {
 function setActiveSlot(index) {
   // Remove active class from current slot
   hotbarSlots[activeSlot].classList.remove('active');
-
-  // Set the new active slot
   activeSlot = index;
 
   // Add active class to new slot
-  // sőt ide is írta anya egy megjegyzést
   hotbarSlots[activeSlot].classList.add('active');
 }
 
@@ -488,7 +490,14 @@ socket.on('startGame', function(data) {
   landingPage.style.display = 'none';
   game.style.display = 'block';
   hotbar.style.display = 'flex';
+  mode = "multiPlayer"
   requestAnimationFrame(gameLoop);
+
+  setInterval(function() {
+    console.log(serverUpdate, 'server updates', renders + ' renders');
+    serverUpdate = 0;
+    renders = 0;
+  }, fpsInterval);
 });
 
 socket.on('invalidName', function(data) {
@@ -539,7 +548,7 @@ function draw() {
   drawPlatforms();
   drawPlayers();
   drawCamera();
-  //console.log('rendered');
+  renders += 1;
 }
 function drawRect(x, y, width, height, color) {
   ctx.fillStyle = color;
@@ -625,8 +634,6 @@ function drawCamera() {
   ctx.setTransform(1, 0, 0, 1, -camera.x, -camera.y);
 }
 function updateDebugDisplay(deltaTime) {
-  console.log("mode: ", mode);
-  mode = "multiPlayer"
   // check if mode is single player or multiplayer
   if (mode === 'singlePlayer') {
     
@@ -654,7 +661,94 @@ function updateDebugDisplay(deltaTime) {
     collision.push('bottom');
   }
   colisionDisplay.innerHTML = 'collisions: ' + collision + '';
+  lastUpdate = player.lastUpdate;
 }
+}
+
+function perdict() {
+  // predict only the player
+  player.x += player.dX * player.deltaTime;
+  player.y += player.dY * player.deltaTime;
+  player.dY += player.gravity * player.deltaTime;
+  collisionCheck(player);
+
+  draw();
+}
+function collisionAABB(rect1, rect2) {
+  return (
+    rect1.x < rect2.x+rect2.width &&
+    rect1.x+rect1.width > rect2.x &&
+    rect1.y < rect2.y+rect2.height &&
+    rect1.y+rect1.height > rect2.y)
+}
+function collisionCheck(player) {
+  player.collision.bottom = false;
+  player.collision.top = false;
+  player.collision.left = false;
+  player.collision.right = false;
+  player.grounded = false;
+
+  for (let platform of platforms) {
+    // Only check platform that have collision with player
+    if (!collisionAABB(player, platform)) {
+      continue;
+    }
+
+    // buffered positional datas
+    // player's coordinates cannot be buffered
+    // because otherwise 2 different collision check might want to
+    // set its coordinate to 2 different values
+    let platX = platform.x;
+    let platY = platform.y;
+    let platW = platform.width;
+    let platH = platform.height;
+
+    // Helper expressions
+    let interceptX = () => {
+      return player.x + player.width > platX && player.x < platX + platW;
+    };
+    let interceptY = () => {
+      return player.y + player.height > platY && player.y < platY + platH;
+    };
+
+    // check bottom collision
+    let pBottom = player.y + player.height;
+    if (pBottom > platY && pBottom <= platY + 10 && interceptX()) {
+      // HACKY way of creating a nonexistent groundlayer on top of every platform, because it counts touching too which in this simple phase is almost the same as a resolved collision
+      player.collision.bottom = true;
+      player.y = platY - player.height;
+      player.dY = 0;
+      player.grounded = true;
+      player.doubleJumping = false;
+      player.wallJumping = false;
+    }
+
+    // check top collision
+    let platBottom = platY + platH;
+    if (player.y >= platBottom - 10 && player.y <= platBottom && interceptX()) {
+      player.collision.top = true;
+      player.y = platY + platH;
+      // Early stage implementation of not falling
+      if (player.dY < 0) {
+        player.dY = 0;
+      }
+    }
+
+    // check right collision
+    let pRight = player.x + player.width;
+    if (pRight <= platX + 10 && pRight >= platX && interceptY()) {
+      player.collision.right = true;
+      player.x = platX - player.width;
+    }
+
+    // check left collision
+    let platRight = platX + platW;
+    if (player.x >= platRight - 10 && player.x <= platRight && interceptY()) {
+      player.collision.left = true;
+      player.x = platX + platW;
+    }
+  }
+
 }
 
 //------------------------------------------------------------
@@ -664,13 +758,16 @@ socket.on('gameState', function(data) {
   //console.log('gameState', data);
   officialState = data;
   player = officialState[socket.id];
+  draw();
+  updateDebugDisplay(player.deltaTime);
+  serverUpdate += 1;
 });
 
 function gameLoop() {
   // send input to server
   updateInput();
   socket.emit('playerUpdate', player);
-  draw();
-  updateDebugDisplay(player.deltaTime);
+  // pridict and draw
+  perdict();
   requestAnimationFrame(gameLoop);
 }

@@ -120,9 +120,9 @@ function Player(name, id, room, x, y) {
   this.gravity = 9.81*45;
   this.maxDX = 600;
   this.maxDY = 1000;
-  this.jumpForce = 410*660;
-  this.acceleration = 28; 
-  this.friction = 29;
+  this.jumpForce = 550;
+  this.acceleration = 40; 
+  this.friction = 50;
   this.grounded = false;
   this.jumping = false;
   this.doubleJumpingAllowed = true;
@@ -136,6 +136,7 @@ function Player(name, id, room, x, y) {
   this.state = 'joining';
   this.health = 100;
 
+  this.lastUpdate = Date.now();
   // ezt majd vedd ki
   this.deltaTime = 1/60;
 }
@@ -262,6 +263,7 @@ function updateGame() {
 var lastTime = Date.now();
 var deltaTime = 0;
 setInterval(function () {
+  if (Object.keys(gameState).length === 0) return;
   // physics calculated with seconds deltatime so
   // setting physics values is less pain in the ass
   //deltaTime = (Date.now() - lastTime) / 1000;
@@ -273,10 +275,16 @@ setInterval(function () {
     }
   }
   //lastTime = Date.now();
-}, 1000/60);
+}, 1000/ 64);
 
 function updatePlayer(player, input, deltaTime) {
   if (player) {
+
+    if(falloffDetection(player)) { // the player fallen of the map
+      player.x = 0
+      player.y = 0
+      return
+    }
     //console.log(deltaTime)
     // Force vectors for a step
     let ddx = 0;
@@ -324,6 +332,7 @@ function updatePlayer(player, input, deltaTime) {
 
     // check and handle if the player is colliding with a platform
     collisionCheck(player);
+    player.lastUpdate = Date.now();
   }
 }
 
@@ -414,6 +423,13 @@ function collisionCheck(player) {
   gameState[player.id].y = player.y;
   gameState[player.id].dX = player.dX;
   gameState[player.id].dY = player.dY;
+}
+
+function falloffDetection(player) {
+  if (player.y > 2000) {
+    return true;
+  }
+  return false;
 }
 
 //---------------------------------

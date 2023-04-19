@@ -40,6 +40,7 @@ const toggleMusic = document.getElementById('music');
 const toggleSound = document.getElementById('sound');
 const toggleKeyboard = document.getElementById('virtualKeyboardButton');
 const toggleRender = document.getElementById('renderButton');
+const prediction = document.getElementById('predictionButton');
 
 // name form
 const landingPage = document.getElementById('landing-page-container');
@@ -139,6 +140,7 @@ var mode = 'lobby';
 var render = true
 var lastUpdate = Date.now();
 var lastRender = Date.now();
+var predict = true;
 var lastPredict = Date.now();
 var predicts = 0;
 var renders = 0;
@@ -399,6 +401,13 @@ toggleKeyboard.addEventListener('click', () => {
   }
 }
 );
+prediction.addEventListener('click', () => {
+  if (predict === true) {
+    predict = false;
+  } else {
+    predict = true;
+  }
+});
 
 // virtual keyboard mimicking the physical keyboard later I will add joystick
 keyboard.addEventListener('click', (e) => {
@@ -766,6 +775,7 @@ socket.on('gameState', function(data) {
   //console.log('gameState', data);
   officialState = data;
   player = officialState[socket.id];
+  predictedState = officialState;
   draw();
   updateDebugDisplay(player.deltaTime);
   serverUpdate ++;
@@ -775,7 +785,8 @@ function gameLoop() {
   // send input to server
   updateInput();
   socket.emit('playerUpdate', player);
-  // pridict and draw
-  perdict();
+  if(predict){
+    perdict();
+  }
   requestAnimationFrame(gameLoop);
 }

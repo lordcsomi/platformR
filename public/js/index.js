@@ -19,6 +19,7 @@ function print(cucc) {
 const stats = document.getElementById('stats');
 const nameDebug = document.getElementById('nameInput');
 const fps = document.getElementById('fps');
+const serverFPS = document.getElementById('server');
 const position = document.getElementById('position');
 const velocity = document.getElementById('velocity');
 const acceleration = document.getElementById('acceleration');
@@ -138,6 +139,8 @@ var mode = 'lobby';
 var render = true
 var lastUpdate = Date.now();
 var lastRender = Date.now();
+var lastPredict = Date.now();
+var predicts = 0;
 var renders = 0;
 var serverUpdate = 0;
 var fpsInterval = 1000; // 1 second
@@ -343,22 +346,22 @@ multiPlayerButton.addEventListener('click', function() {
   const name = nameInput.value;
   // check if name is valid
   if (name.length < validName.minLength || name.length > validName.maxLength) {
-    socket.emit('invalidName', 'Name must be between ' + validName.minLength + ' and ' + validName.maxLength + ' characters long.');
+    alert('Name must be between ' + validName.minLength + ' and ' + validName.maxLength + ' characters.');
     return;
   }
-  if (!validName.anonymous && name === 'anonymous') {
-    socket.emit('invalidName', 'Name can not be anonymous.');
+  if (!validName.anonymous && name === 'anonymous' || name === 'Anonymous' || name === 'ANONYMOUS' ) {
+    alert('Name cannot be anonymous.');
     return;
   }
   for (let i = 0; i < name.length; i++) {
     if (!validName.allowedCharacters.includes(name[i])) {
-      socket.emit('invalidName', 'Name contains invalid characters.');
+     alert('Name contains invalid characters.');
       return;
     }
   }
   // check if name is already in use
   if (takenNames.includes(name)) {
-    socket.emit('invalidName', 'Name is already in use.');
+    alert('Name is already in use.');
     return;
   }
   // set name
@@ -494,9 +497,12 @@ socket.on('startGame', function(data) {
   requestAnimationFrame(gameLoop);
 
   setInterval(function() {
-    console.log(serverUpdate, 'server updates', renders + ' renders');
+    //console.log(serverUpdate, 'server updates', predicts,'predicts', renders + ' renders');
+    fps.innerHTML = 'fps: ' + renders + '';
+    serverFPS.innerHTML = 'server fps: ' + serverUpdate + '';
     serverUpdate = 0;
     renders = 0;
+    predicts = 0;
   }, fpsInterval);
 });
 
@@ -548,7 +554,7 @@ function draw() {
   drawPlatforms();
   drawPlayers();
   drawCamera();
-  renders += 1;
+  renders ++;
 }
 function drawRect(x, y, width, height, color) {
   ctx.fillStyle = color;
@@ -640,7 +646,6 @@ function updateDebugDisplay(deltaTime) {
 } else if (mode === 'multiPlayer') {
   nameDebug.innerHTML = 'name: ' + player.name + '';
   position.innerHTML = 'x: ' + player.x.toFixed(2) + ', y: ' + player.y.toFixed(2) + '';
-  fps.innerHTML = 'fps: ' + (1000 / deltaTime).toFixed(2) + '';
   velocity.innerHTML = 'dX: ' + player.dX.toFixed(2) + ', dY: ' + player.dY.toFixed(2) + '';
   grounded.innerHTML = 'grounded: ' + player.grounded + '';
   jumping.innerHTML = 'jumping: ' + player.jumping + '';
@@ -673,6 +678,7 @@ function perdict() {
   collisionCheck(player);
 
   draw();
+  predicts++;
 }
 function collisionAABB(rect1, rect2) {
   return (
@@ -760,7 +766,7 @@ socket.on('gameState', function(data) {
   player = officialState[socket.id];
   draw();
   updateDebugDisplay(player.deltaTime);
-  serverUpdate += 1;
+  serverUpdate ++;
 });
 
 function gameLoop() {

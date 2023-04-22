@@ -192,39 +192,6 @@ canvas {
     cursor: pointer;
 }
 
-#virtual-keyboard {
-    display: none;
-    position: absolute;
-    bottom: 0;
-    width: 100%;
-    height: 30%;
-  }
-  
-  .row {
-    display: flex;
-    justify-content: space-around;
-    align-items: center;
-    height: 50%;
-  }
-  
-  .key {
-    width: 30%;
-    height: 80%;
-    border: 1px solid black;
-    background: rgba(0, 0, 0, 0.5);
-  }
-  
-  #left-arrow:before {
-    content: "<";
-  }
-  
-  #right-arrow:before {
-    content: ">";
-  }
-  
-  #jump:before {
-    content: "^";
-  }
 
 .hotbar {
   position: fixed;

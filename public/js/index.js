@@ -48,11 +48,7 @@ const nameInput = document.getElementById('name');
 const singlePlayerButton = document.getElementById('singlePlayer');
 const multiPlayerButton = document.getElementById('multiPlayer');
 
-// virtual keyboard
-const keyboard = document.getElementById("virtual-keyboard");
-const left = document.getElementById("left-arrow");
-const right = document.getElementById("right-arrow");
-const up = document.getElementById("jump");
+// virtual joystick
 
 //hotbar
 const hotbar = document.getElementById('hotbar');
@@ -116,7 +112,7 @@ var platforms = [
   {x: 16000, y: -900, width: 1000, height: 100, color: 'white'},
 
   // box around the map
-  {x: -1000, y: -1000, width: 10, height: 4000 , color: '#000000'},
+  {x: -1000, y: -1000, width: 10, height: 4000 , color: 'gray'},
 
 ]
 var visuals = {
@@ -317,6 +313,7 @@ window.addEventListener("resize", function() {
   camera.width = canvas.width;
   camera.height = canvas.height;
   socket.emit('screenSize', {width: window.innerWidth, height: window.innerHeight});
+  updateCamera();
   console.log('resized');
 });
 
@@ -329,6 +326,7 @@ document.addEventListener('visibilitychange', function() {
     socket.emit('tabHidden');
     console.log('tab hidden');
   } else {
+    keys = [];
     socket.emit('tabVisible');
     console.log('tab visible');
   }
@@ -409,23 +407,7 @@ prediction.addEventListener('click', () => {
   }
 });
 
-// virtual keyboard mimicking the physical keyboard later I will add joystick
-keyboard.addEventListener('click', (e) => {
-  console.log(e.target.id);
-  if (e.target.id === 'left-arrow') { 
-    keys[37] = true;
-    setTimeout(() => {
-      keys[37] = false;
-    }, 100);
-  } else if (e.target.id === 'right-arrow') {
-    keys[39] = true;
-    setTimeout(() => {
-      keys[39] = false;
-    }, 100);
-  } else if (e.target.id === 'up-arrow') { 
-    keys[32] = true;
-  }
-});
+
 
 // Add event listeners to the hotbar slots
 hotbarSlots.forEach((slot, index) => {
@@ -509,6 +491,9 @@ socket.on('startGame', function(data) {
     //console.log(serverUpdate, 'server updates', predicts,'predicts', renders + ' renders');
     fps.innerHTML = 'fps: ' + renders + '';
     serverFPS.innerHTML = 'server fps: ' + serverUpdate + '';
+    if (serverUpdate < 30) {
+      console.log('server is lagging', serverUpdate, Date.now());
+    }
     serverUpdate = 0;
     renders = 0;
     predicts = 0;

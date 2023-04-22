@@ -1,4 +1,5 @@
 const express = require('express');
+const path = require('path');
 const { Socket } = require('socket.io');
 const os = require('os');
 const { log } = require('console');
@@ -67,7 +68,7 @@ var platforms = [
   {x: 16000, y: -900, width: 1000, height: 100, color: 'white'},
 
   // box around the map
-  {x: -1000, y: -1000, width: 10, height: 4000 , color: '#000000'},
+  {x: -1000, y: -1000, width: 10, height: 4000 , color: 'gray'},
 
 ]
 
@@ -144,7 +145,14 @@ function Player(name, id, room, x, y) {
 //--------------------------------
 // CONNECTION
 //--------------------------------
-app.use(express.static('public'));
+const publicPath = path.join(__dirname, '../public');
+app.use(express.static(publicPath));
+app.set('view engine', 'ejs');
+
+// Handle 404 errors
+app.use((req, res, next) => {
+  res.status(404).sendFile(path.join(publicPath, '404.html'));
+});
 
 server.listen(port, function () {
   const ip = Object.values(os.networkInterfaces())
@@ -279,6 +287,13 @@ setInterval(function () {
 
 function updatePlayer(player, input, deltaTime) {
   if (player) {
+    if (!checkIFValidPosition(player)) {
+      player.dY = -1
+      console.log('INVALID POSITION', player.id, player.name, player.x, player.y, player.dX, player.dY);
+      while (!checkIFValidPosition(player)) {
+        player.y -= 1
+      }
+    }
 
     if(falloffDetection(player)) { // the player fallen of the map
       player.x = 0
@@ -429,9 +444,19 @@ function collisionCheck(player) {
 
 function falloffDetection(player) {
   if (player.y > 2000) {
+    console.log('FALLOFF DETECTED', player.id, player.name, player.x, player.y, player.dX, player.dY);
     return true;
   }
   return false;
+}
+
+function checkIFValidPosition(enity) { 
+  for (let platform of platforms) {
+    if (collisionAABB(enity, platform)) {
+      return false;
+    }
+  }
+  return true;
 }
 
 //---------------------------------

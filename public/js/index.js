@@ -666,7 +666,7 @@ function updateDebugDisplay(deltaTime) {
     collision.push('bottom');
   }
   colisionDisplay.innerHTML = 'collisions: ' + collision + '';
-  lastUpdate = player.lastUpdate;
+  //lastUpdate = player.lastUpdate;
 }
 }
 

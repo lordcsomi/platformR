@@ -20,6 +20,7 @@ const stats = document.getElementById('stats');
 const nameDebug = document.getElementById('nameInput');
 const fps = document.getElementById('fps');
 const serverFPS = document.getElementById('server');
+const latency = document.getElementById('latency');
 const position = document.getElementById('position');
 const velocity = document.getElementById('velocity');
 const acceleration = document.getElementById('acceleration');
@@ -458,7 +459,11 @@ function setActiveSlot(index) {
 //--------------------------------------------------------------------------------
 // SOCKET LISTENERS
 //--------------------------------------------------------------------------------
-// listen for initialData
+function disableConnection() {
+  socket.disconnect();
+  console.log('Connection to server has been disabled.');
+}
+
 socket.on('NameRules', function(data) {
   const validName = data;
   console.log('nameRules received', validName);
@@ -491,7 +496,7 @@ socket.on('startGame', function(data) {
     //console.log(serverUpdate, 'server updates', predicts,'predicts', renders + ' renders');
     fps.innerHTML = 'fps: ' + renders + '';
     serverFPS.innerHTML = 'server fps: ' + serverUpdate + '';
-    if (serverUpdate < 30) {
+    if (serverUpdate < 50) {
       console.log('server is lagging', serverUpdate, Date.now());
     }
     serverUpdate = 0;
@@ -639,6 +644,7 @@ function updateDebugDisplay(deltaTime) {
     
 } else if (mode === 'multiPlayer') {
   nameDebug.innerHTML = 'name: ' + player.name + '';
+  latency.innerHTML = 'latency: ' + (Date.now() - player.lastUpdate) + 'ms';
   position.innerHTML = 'x: ' + player.x.toFixed(2) + ', y: ' + player.y.toFixed(2) + '';
   velocity.innerHTML = 'dX: ' + player.dX.toFixed(2) + ', dY: ' + player.dY.toFixed(2) + '';
   grounded.innerHTML = 'grounded: ' + player.grounded + '';

@@ -23,7 +23,7 @@ const validName = {
   'minLength': 3,
   'maxLength': 20,
   'anonymous': false,
-  'allowedCharacters': 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_ -'
+  'allowedCharacters': 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_ '
 };
 const serverSettings = {
   'maxPlayers': 10,
@@ -348,6 +348,7 @@ function updatePlayer(player, input, deltaTime) {
     // check and handle if the player is colliding with a platform
     collisionCheck(player);
     player.lastUpdate = Date.now();
+    //console.log(player.lastUpdate)
   }
 }
 

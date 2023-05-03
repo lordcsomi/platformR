@@ -10,11 +10,6 @@ ctx.scale(1, 1);
 canvas.width = window.innerWidth;
 canvas.height = window.innerHeight;
 
-// alice hulyesege
-function print(cucc) {
-  console.log(cucc);
-}
-
 //debug display
 const stats = document.getElementById('stats');
 const nameDebug = document.getElementById('nameInput');
@@ -27,8 +22,6 @@ const acceleration = document.getElementById('acceleration');
 const grounded = document.getElementById('grounded');
 const jumping = document.getElementById('jumping');
 const doubleJumping = document.getElementById('doubleJumping');
-const wallJumpingLeft = document.getElementById('wallJumpingLeft');
-const wallJumpingRight = document.getElementById('wallJumpingRight');
 const colisionDisplay = document.getElementById('colisionDisplay');
 
 // settings
@@ -293,6 +286,7 @@ window.addEventListener('mousemove', function(e) {
   if (mouse.click === true) {
     mouse.clickX = e.clientX;
     mouse.clickY = e.clientY;
+    console.log('angle', radiansToDegrees(angleBetweenPoints(player.x - camera.x + player.width / 2, player.y - camera.y + player.height / 2, mouse.clickX, mouse.clickY))) // problem here
   }
 });
 window.addEventListener('mousedown', function(e) {
@@ -303,10 +297,14 @@ window.addEventListener('mousedown', function(e) {
     mouse.click = true;
     mouse.clickX = e.clientX;
     mouse.clickY = e.clientY;
+    console.log('mouse click', mouse.clickX, mouse.clickY)
+    console.log('player on screen', player.x - camera.x + player.width / 2, player.y - camera.y + player.height / 2)
+    console.log('angle', radiansToDegrees(angleBetweenPoints(player.x - camera.x + player.width / 2, player.y - camera.y + player.height / 2, mouse.clickX, mouse.clickY))) // problem here
   }
 });
 window.addEventListener('mouseup', function(e) {
   mouse.click = false;
+
 });
 window.addEventListener("resize", function() {
   canvas.width = window.innerWidth;
@@ -496,7 +494,7 @@ socket.on('startGame', function(data) {
     //console.log(serverUpdate, 'server updates', predicts,'predicts', renders + ' renders');
     fps.innerHTML = 'fps: ' + renders + '';
     serverFPS.innerHTML = 'server fps: ' + serverUpdate + '';
-    if (serverUpdate < 50) {
+    if (serverUpdate < 48) {
       console.log('server is lagging', serverUpdate, Date.now());
     }
     serverUpdate = 0;
@@ -522,9 +520,6 @@ socket.on('disconnect', function(data) {
   socket.disconnect();
   document.location.reload();
 });
-//--------------------------------------------------------------------------------
-// UPDATE FUNCTIONS
-//--------------------------------------------------------------------------------
 
 function updateInput() {
   if (keys[37] || keys[65]) { // left
@@ -544,6 +539,14 @@ function updateInput() {
   }
 }
 
+function angleBetweenPoints(x1, y1, x2, y2) { // returns angle in radians
+  return Math.atan2(y2 - y1, x2 - x1);
+}
+
+function radiansToDegrees(radians) {
+  return radians * 180 / Math.PI;
+}
+
 //------------------------------------------------------------
 // RENDERING
 //------------------------------------------------------------
@@ -552,12 +555,20 @@ function draw() {
   drawBackground();
   drawPlatforms();
   drawPlayers();
+  drawLine(0, 0, 100, 100, 'red');
   drawCamera();
   renders ++;
 }
 function drawRect(x, y, width, height, color) {
   ctx.fillStyle = color;
   ctx.fillRect(x, y, width, height);
+}
+function drawLine(x1, y1, x2, y2, color) {
+  ctx.strokeStyle = color;
+  ctx.beginPath();
+  ctx.moveTo(x1, y1);
+  ctx.lineTo(x2, y2);
+  ctx.stroke();
 }
 function drawCircle(x, y, radius, color) {
   ctx.fillStyle = color;
@@ -650,8 +661,6 @@ function updateDebugDisplay(deltaTime) {
   grounded.innerHTML = 'grounded: ' + player.grounded + '';
   jumping.innerHTML = 'jumping: ' + player.jumping + '';
   doubleJumping.innerHTML = 'doubleJumping: ' + player.doubleJumping + '';
-  wallJumpingLeft.innerHTML = 'wallJumpingLeft: ' + player.wallJumpingLeft + '';
-  wallJumpingRight.innerHTML = 'wallJumpingRight: ' + player.wallJumpingRight + '';
   var collision = [];
   if (player.collision.right === true) {
     collision.push('right');

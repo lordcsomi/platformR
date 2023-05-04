@@ -119,8 +119,8 @@ function Player(name, id, room, x, y) {
     right: false
   };
   this.gravity = 9.81*45;
-  this.maxDX = 600;
-  this.maxDY = 1000;
+  this.maxDX = 300;
+  this.maxDY = 600;
   this.jumpForce = 550;
   this.acceleration = 40; 
   this.friction = 50;
@@ -129,6 +129,7 @@ function Player(name, id, room, x, y) {
   this.doubleJumpingAllowed = true;
   this.doubleJumping = false;
   this.jumpCooldown = 0.3;
+  this.lastJump = Date.now();
   this.wallJumpingLeft = false;
   this.wallJumpingRight = false;
   this.wallJumping = false;
@@ -327,6 +328,15 @@ function updatePlayer(player, input, deltaTime) {
       player.jumping = true;
       player.doubleJumpingAllowed = true;
       player.grounded = false;
+      player.lastJump = Date.now();
+    }
+    if (input.jump && player.doubleJumpingAllowed && Date.now() - player.lastJump > player.jumpCooldown * 1000) { // double jump
+      if (player.dY > 0) {
+        player.dY = player.dY / 3;
+      }
+      player.dY -= player.jumpForce;
+      player.doubleJumpingAllowed = false;  
+      player.lastJump = Date.now();
     }
 
     // Update velocities
@@ -402,7 +412,7 @@ function collisionCheck(player) {
       player.y = platY - player.height;
       player.dY = 0;
       player.grounded = true;
-      player.doubleJumping = false;
+      player.doubleJumpingAllowed = true;
       player.wallJumping = false;
     }
 

@@ -20,8 +20,6 @@ const position = document.getElementById('position');
 const velocity = document.getElementById('velocity');
 const acceleration = document.getElementById('acceleration');
 const grounded = document.getElementById('grounded');
-const jumping = document.getElementById('jumping');
-const doubleJumping = document.getElementById('doubleJumping');
 const colisionDisplay = document.getElementById('colisionDisplay');
 
 // settings
@@ -107,8 +105,9 @@ var platforms = [
 
   // box around the map
   {x: -1000, y: -1000, width: 10, height: 4000 , color: 'gray'},
-
 ]
+var maps = [];
+var currentMap = 'lobby';
 var visuals = {
   background: {
     layer1: [
@@ -194,11 +193,14 @@ window.onload = function() {
   // load name from cookies
   if (getCookie('name') != '') {
     player.name = getCookie('name');
-    console.log('loaded name from cookies', getCookie('name'));
     nameInput.value = getCookie('name');
     if (nameInput.value == 'undefined') {
       nameInput.value = '';
+      console.log('no name found in cookies');
+    } else {
+      console.log('loaded name from cookies', getCookie('name'));
     }
+
   } else {
     console.log('no name found in cookies');
   }
@@ -482,6 +484,22 @@ socket.on('nameSet', function(data) {
   console.log('cookie set to ' + myName);
 });
 
+socket.on('maps', function(data) {
+  maps = data;
+});
+
+socket.on('currentMap', function(data) {
+  console.log('currentMap received');
+  currentMap = data;
+  for (let i = 0; i < maps.length; i++) {
+    if (maps[i].name == currentMap) {
+      platforms = maps[i].platforms
+    }
+  }
+});
+
+
+
 socket.on('startGame', function(data) {
   console.log('startGame received');
   landingPage.style.display = 'none';
@@ -588,10 +606,10 @@ function drawBackground() {
   drawRect(camera.x, camera.y, camera.width, camera.height, 'gray');
   // draw a grid on top of the background according to the word
   // "grid" in the word "background"
-  for (var i = -1000; i < 15000; i += 40) {
+  for (var i = -1000; i < 15000; i += 100) {
     drawRect(i, -1000, 1, 15000, 'DimGray');
   }
-  for (var i = -1000; i < 15000; i += 40) {
+  for (var i = -1000; i < 15000; i += 100) {
     drawRect(-1000, i, 15000, 1, 'DimGray');
   }
 
@@ -659,8 +677,6 @@ function updateDebugDisplay(deltaTime) {
   position.innerHTML = 'x: ' + player.x.toFixed(2) + ', y: ' + player.y.toFixed(2) + '';
   velocity.innerHTML = 'dX: ' + player.dX.toFixed(2) + ', dY: ' + player.dY.toFixed(2) + '';
   grounded.innerHTML = 'grounded: ' + player.grounded + '';
-  jumping.innerHTML = 'jumping: ' + player.jumping + '';
-  doubleJumping.innerHTML = 'doubleJumping: ' + player.doubleJumping + '';
   var collision = [];
   if (player.collision.right === true) {
     collision.push('right');

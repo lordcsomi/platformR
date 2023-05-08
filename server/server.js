@@ -71,20 +71,44 @@ var platforms = [
   {x: -1000, y: -1000, width: 10, height: 4000 , color: 'gray'},
 
 ]
+var gameMap = 'lobby'
+var maps = [
+  {
+    name : 'lobby', // lobby map for the players to wait for the game to start
+    platforms: [
+      {x: -200, y: 500, width: 1400, height: 50, color: 'white'},
+    ],
+    spawnpoints: {
+      red : {x: 0, y: 100}, // x = left right, y = up down
+      blue : {x: 1000, y: 100},
+    }
+  },
+]
+// for now set the map to lobby 
+for (let i = 0; i < maps.length; i++) {
+  if (maps[i].name == gameMap) {
+    platforms = maps[i].platforms
+  }
+}
 
 //---------------------------------
 // GLOBAL VARIABLES
 //---------------------------------
-
 var gameState = {}; //socket.id = {lots of info of the player} offical game state
 var playerInputs = {}; //socket.id = {lots of info of the player} stuff that the client sends to the server
 var userInfos = {}; //socket.id = {other infromation what only the server knows}
 var userNames = []; //to store all usernames in use rn
+var teams = {}; // store all the teams and their players
+teams = {
+  red : {}, // socket.id = 
+  blue : {},
+}
 var spectators = []; //this is only a feature plan
 var rooms = []; // this on is also just a plan
 
+
 //---------------------------------
-// INIT USER
+// FUNCTIONS
 //---------------------------------
 function User(name, id, ip, screen, mobile) {
   this.name = name;
@@ -95,14 +119,13 @@ function User(name, id, ip, screen, mobile) {
   this.active = true;
   this.mobile = false;
 }
-
-function Player(name, id, room, x, y) {
+function Player(name, id, room, color, x, y) {
   this.name = name;
   this.id = id;
   this.room = room;
   this.width = 20;
   this.height = 20;
-  this.color = 'black';
+  this.color = color;
   this.x = x;
   this.y = y;
   this.dX = 0;
@@ -125,9 +148,7 @@ function Player(name, id, room, x, y) {
   this.acceleration = 40; 
   this.friction = 50;
   this.grounded = false;
-  this.jumping = false;
   this.doubleJumpingAllowed = true;
-  this.doubleJumping = false;
   this.jumpCooldown = 0.3;
   this.lastJump = Date.now();
   this.wallJumpingLeft = false;
@@ -136,6 +157,7 @@ function Player(name, id, room, x, y) {
   this.freemode = false;
   this.latency = 0;
   this.state = 'joining';
+  this.team = null;
   this.health = 100;
 
   this.lastUpdate = Date.now();
@@ -143,117 +165,20 @@ function Player(name, id, room, x, y) {
   this.deltaTime = 1/60;
 }
 
-//--------------------------------
-// CONNECTION
-//--------------------------------
-const publicPath = path.join(__dirname, '../public');
-app.use(express.static(publicPath));
-app.set('view engine', 'ejs');
-
-// Handle 404 errors
-app.use((req, res, next) => {
-  res.status(404).sendFile(path.join(publicPath, '404.html'));
-});
-
-server.listen(port, function () {
-  const ip = Object.values(os.networkInterfaces())
-    .flatMap((iface) => iface.filter((info) => info.family === 'IPv4' && !info.internal))
-    .map((info) => info.address)[0];
-  console.log(`Server listening on http://${ip}:3000`);
-});
-
-io.on('connection', function (socket) {
-  if (bannedIPs.includes(socket.handshake.address)) {
-    console.log('banned ip tried to connect:', socket.handshake.address);
-    socket.emit('forceDiscConnect', true);
-    socket.disconnect();
-    return;
-  }
-  else if (userNames.length >= maxPlayers) {
-    console.log('max players reached:', socket.handshake.address);
-    socket.disconnect();
-    return;
-  }
-  else if (io.engine.clientsCount >= maxConnections) {
-    console.log('max connections reached:', socket.handshake.address);
-    socket.disconnect();
-    return;
-  }
-  const userAgent = socket.handshake.headers['user-agent'];
-  const isMobile = /Mobile/.test(userAgent);
-  userInfos[socket.id] = new User('', socket.id, socket.handshake.address, '', isMobile);
-  console.log('a user connected id:', socket.id, 'ip:', socket.handshake.address);
-
-  socket.on('screenSize', function (screen) {
-    userInfos[socket.id].screen = screen;
-  });
-
-  socket.emit('NameRules', validName);
-  socket.emit('namesInUse', userNames);
-  socket.on('setName', function (name) {
-    if (name.length < validName.minLength || name.length > validName.maxLength) {
-      socket.emit('invalidName', 'Name must be between ' + validName.minLength + ' and ' + validName.maxLength + ' characters long.');
-      return;
-    }
-    if (!validName.anonymous && name === 'anonymous') {
-      socket.emit('invalidName', 'Name can not be anonymous.');
-      return;
-    }
-    for (let i = 0; i < name.length; i++) {
-      if (!validName.allowedCharacters.includes(name[i])) {
-        socket.emit('invalidName', 'Name contains invalid characters.');
-        return;
-      }
-    }
-    if (userNames.includes(name)) {
-      socket.emit('invalidName', 'Name is already in use.');
-      return;
-    }
-    userInfos[socket.id].name = name;
-    userNames.push(name);
-    gameState[socket.id] = new Player(name, socket.id, 'lobby', 0, 0);
-    gameState[socket.id].state = 'inGame';
-    socket.emit('gameState', gameState);
-    socket.emit('nameSet', name);
-    io.emit('namesInUse', userNames);
-    console.log('--- new player in game:', gameState[socket.id].name);
-
-    // start game for the new player
-    socket.emit('startGame', {});
-  });
-
-  socket.on('playerUpdate', function (player) {
-    playerInputs[socket.id] = player.input;
-  });
-
-  socket.on('tabHidden', function () {
-    userInfos[socket.id].active = false;
-  });
-
-  socket.on('tabVisible', function () {
-    userInfos[socket.id].active = true;
-  });
-  
-  socket.on('disconnect', function () {
-    if (userInfos[socket.id].name) {
-      console.log('--- player left game:', userInfos[socket.id].name);
-      userNames.splice(userNames.indexOf(userInfos[socket.id].name), 1);
-      delete gameState[socket.id];
+function chooseTeam(teams) {
+  // choose the team with the least players and if the teams are equaly big choose randomly 
+  if (Object.keys(teams.red).length < Object.keys(teams.blue).length) {
+    return 'red'
+  } else if (Object.keys(teams.red).length > Object.keys(teams.blue).length) {
+    return 'blue'
+  } else {
+    if (Math.random() < 0.5) {
+      return 'red'
     } else {
-      console.log('a user disconnected id:', socket.id, 'ip:', socket.handshake.address);
+      return 'blue'
     }
-    delete userInfos[socket.id];
-    io.emit('namesInUse', userNames);
-  });
-
-  socket.on('invalidPositions', function (invalidPositions) {
-    invalidPositionsToFile('./temporary/invalidPositions.txt', invalidPositions, ';');
-  });
-});
-
-//---------------------------------
-// UPDATE PLAYERS
-//---------------------------------
+  }
+}
 
 function updateGame() {
   // update the game state according to the input (playerInput)
@@ -263,28 +188,6 @@ function updateGame() {
     updatePlayer(gameState[id], input, deltaTime);
   }
 };
-
-//---------------------------------
-// SERVER TICK
-//---------------------------------
-// Delta time alap mertekegysege: ms
-// az idealis 1/60 seconds ami milisecondben 16.66
-var lastTime = Date.now();
-var deltaTime = 0;
-setInterval(function () {
-  if (Object.keys(gameState).length === 0) return;
-  // physics calculated with seconds deltatime so
-  // setting physics values is less pain in the ass
-  //deltaTime = (Date.now() - lastTime) / 1000;
-  deltaTime = 1/60
-  updateGame();
-  for (const [id, player] of Object.entries(gameState)) {
-    if (player.name) {
-      io.to(id).emit('gameState', gameState);
-    }
-  }
-  //lastTime = Date.now();
-}, 1000/ 64);
 
 function updatePlayer(player, input, deltaTime) {
   if (player) {
@@ -325,7 +228,6 @@ function updatePlayer(player, input, deltaTime) {
     ddy += player.gravity;
     if (input.jump && player.grounded) { // jump
       player.dY -= player.jumpForce;
-      player.jumping = true;
       player.doubleJumpingAllowed = true;
       player.grounded = false;
       player.lastJump = Date.now();
@@ -469,6 +371,143 @@ function checkIFValidPosition(enity) {
   }
   return true;
 }
+
+//--------------------------------
+// CONNECTION
+//--------------------------------
+const publicPath = path.join(__dirname, '../public');
+app.use(express.static(publicPath));
+app.set('view engine', 'ejs');
+
+// Handle 404 errors
+app.use((req, res, next) => {
+  res.status(404).sendFile(path.join(publicPath, '404.html'));
+});
+
+server.listen(port, function () {
+  const ip = Object.values(os.networkInterfaces())
+    .flatMap((iface) => iface.filter((info) => info.family === 'IPv4' && !info.internal))
+    .map((info) => info.address)[0];
+  console.log(`Server listening on http://${ip}:3000`);
+});
+
+io.on('connection', function (socket) {
+  if (bannedIPs.includes(socket.handshake.address)) {
+    console.log('banned ip tried to connect:', socket.handshake.address);
+    socket.emit('forceDiscConnect', true);
+    socket.disconnect();
+    return;
+  }
+  else if (userNames.length >= maxPlayers) {
+    console.log('max players reached:', socket.handshake.address);
+    socket.disconnect();
+    return;
+  }
+  else if (io.engine.clientsCount >= maxConnections) {
+    console.log('max connections reached:', socket.handshake.address);
+    socket.disconnect();
+    return;
+  }
+  const userAgent = socket.handshake.headers['user-agent'];
+  const isMobile = /Mobile/.test(userAgent);
+  userInfos[socket.id] = new User('', socket.id, socket.handshake.address, '', isMobile);
+  console.log('a user connected id:', socket.id, 'ip:', socket.handshake.address);
+
+  socket.on('screenSize', function (screen) {
+    userInfos[socket.id].screen = screen;
+  });
+
+  socket.emit('NameRules', validName);
+  socket.emit('namesInUse', userNames);
+  socket.emit('maps', maps);
+  socket.emit('currentMap', gameMap);
+  socket.on('setName', function (name) {
+    if (name.length < validName.minLength || name.length > validName.maxLength) {
+      socket.emit('invalidName', 'Name must be between ' + validName.minLength + ' and ' + validName.maxLength + ' characters long.');
+      return;
+    }
+    if (!validName.anonymous && name === 'anonymous') {
+      socket.emit('invalidName', 'Name can not be anonymous.');
+      return;
+    }
+    for (let i = 0; i < name.length; i++) {
+      if (!validName.allowedCharacters.includes(name[i])) {
+        socket.emit('invalidName', 'Name contains invalid characters.');
+        return;
+      }
+    }
+    if (userNames.includes(name)) {
+      socket.emit('invalidName', 'Name is already in use.');
+      return;
+    }
+    userInfos[socket.id].name = name;
+    userNames.push(name);
+
+    var wichTeam = chooseTeam(teams)
+    teams[wichTeam][socket.id] = name
+    //console.log(teams) // strangly sometimes the socket.id is in '' and sometimes not
+    spawnpoint = maps[0].spawnpoints[wichTeam]
+    gameState[socket.id] = new Player(name, socket.id, 'lobby', wichTeam, spawnpoint.x, spawnpoint.y); // spawn the player in the lobby
+    gameState[socket.id].state = 'inGame';
+    socket.emit('gameState', gameState);
+    socket.emit('nameSet', name);
+    io.emit('namesInUse', userNames);
+    console.log('--- new player in game:', gameState[socket.id].name);
+
+    // start game for the new player
+    socket.emit('startGame', {});
+  });
+
+  socket.on('playerUpdate', function (player) {
+    playerInputs[socket.id] = player.input;
+  });
+
+  socket.on('tabHidden', function () {
+    userInfos[socket.id].active = false;
+  });
+
+  socket.on('tabVisible', function () {
+    userInfos[socket.id].active = true;
+  });
+  
+  socket.on('disconnect', function () {
+    if (userInfos[socket.id].name) {
+      console.log('--- player left game:', userInfos[socket.id].name);
+      userNames.splice(userNames.indexOf(userInfos[socket.id].name), 1);
+      delete gameState[socket.id];
+    } else {
+      console.log('a user disconnected id:', socket.id, 'ip:', socket.handshake.address);
+    }
+    delete userInfos[socket.id];
+    io.emit('namesInUse', userNames);
+  });
+
+  socket.on('invalidPositions', function (invalidPositions) {
+    invalidPositionsToFile('./temporary/invalidPositions.txt', invalidPositions, ';');
+  });
+});
+
+//---------------------------------
+// SERVER TICK
+//---------------------------------
+// Delta time alap mertekegysege: ms
+// az idealis 1/60 seconds ami milisecondben 16.66
+var lastTime = Date.now();
+var deltaTime = 0;
+setInterval(function () {
+  if (Object.keys(gameState).length === 0) return;
+  // physics calculated with seconds deltatime so
+  // setting physics values is less pain in the ass
+  //deltaTime = (Date.now() - lastTime) / 1000;
+  deltaTime = 1/60
+  updateGame();
+  for (const [id, player] of Object.entries(gameState)) {
+    if (player.name) {
+      io.to(id).emit('gameState', gameState);
+    }
+  }
+  //lastTime = Date.now();
+}, 1000/ 64);
 
 //---------------------------------
 // ERROR HANDLING

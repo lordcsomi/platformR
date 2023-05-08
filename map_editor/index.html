@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Map Maker</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div id="container">
+    <div id="left-panel">
+      <h2>Existing Platforms</h2>
+      <select id="existing-platforms-select">
+      </select>
+      <h2>Add New Platform</h2>
+      <form id="add-platform-form">
+        <label for="platform-width">Width:</label>
+        <input type="number" id="platform-width" value="200">
+        <label for="platform-height">Height:</label>
+        <input type="number" id="platform-height" value="50">
+        <label for="platform-x">X:</label>
+        <input type="number" id="platform-x" value="0">
+        <label for="platform-y">Y:</label>
+        <input type="number" id="platform-y" value="0">
+        <label for="platform-color">Color:</label>
+        <input type="color" id="platform-color" value="#000000">
+        <button type="button" id="add-platform-btn">Add Platform</button>
+      </form>
+      <button type="button" id="create-map-btn">Create Map</button>
+    </div>
+    <div id="right-panel">
+      <canvas id="map-canvas" width="2000" height="1000"></canvas>
+    </div>
+  </div>
+
+  <script src="index.js"></script>
+</body>
+</html>

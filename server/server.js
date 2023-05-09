@@ -76,11 +76,19 @@ var maps = [
   {
     name : 'lobby', // lobby map for the players to wait for the game to start
     platforms: [
-      {x: -200, y: 500, width: 1400, height: 50, color: 'white'},
+      {x: -200, y: 500, width: 14000, height: 50, color: 'white'},
     ],
     spawnpoints: {
       red : {x: 0, y: 100}, // x = left right, y = up down
       blue : {x: 1000, y: 100},
+    },
+    flags : {
+      red: {x: 0, y: 400, width: 30, height: 50, color: 'red'},
+      blue: {x: 1000, y: 400, width: 30, height: 50, color: 'blue'},
+    },
+    capturpoints: {
+      red : {x1: 0, y1: 0, x2: 100, y2: 100}, // left top right bottom
+      blue : {x1: 0, y1: 0, x2: 100, y2: 100},
     }
   },
 ]
@@ -159,12 +167,48 @@ function Player(name, id, room, color, x, y) {
   this.state = 'joining';
   this.team = null;
   this.health = 100;
+  this.hasFlag = false;
 
   this.lastUpdate = Date.now();
   // ezt majd vedd ki
   this.deltaTime = 1/60;
 }
+function Flag(x, y, color, team) {
+  this.width = 20;
+  this.height = 20;
+  this.color = color;
+  this.x = x;
+  this.y = y;
+  this.dX = 0;
+  this.dY = 0;
+  this.collision = {
+    top: false,
+    bottom: false,
+    left: false,
+    right: false
+  };
+  this.gravity = 9.81*45;
+  this.maxDX = 300;
+  this.maxDY = 600;
+  this.grounded = false;
+  this.team = team;
+}
 
+function flagIsCaptured(map, team) { // if the flag is inside the capturpoint
+  // check if the flag is captured
+  if (map.capturpoints.red.x1 < gameState[team].x && gameState[team].x < map.capturpoints.red.x2 && map.capturpoints.red.y1 < gameState[team].y && gameState[team].y < map.capturpoints.red.y2) {
+    return true
+  } else {
+    return false
+  }
+}
+function flagTouchingPlayer(player, flag) { // if the player is touching the flag
+  if (collisionAABB(player, flag)) {
+    return true
+  } else {
+    return false
+  }
+}
 function chooseTeam(teams) {
   // choose the team with the least players and if the teams are equaly big choose randomly 
   if (Object.keys(teams.red).length < Object.keys(teams.blue).length) {
@@ -198,11 +242,19 @@ function updatePlayer(player, input, deltaTime) {
         player.y -= 1
       }
     }
-
     if(falloffDetection(player)) { // the player fallen of the map
       player.x = 0
       player.y = 0
       return
+    }
+    if(player.hasFlag === false) { 
+      //detect if the player touched the enemy flag
+      if (player.team === 'red') {
+        if (flagTouchingPlayer(player, flags.blue)) {
+          // the enemy flag should be carried by the player
+          console.log(player.name, 'touched the enemy flag')
+        }
+      }
     }
     //console.log(deltaTime)
     // Force vectors for a step

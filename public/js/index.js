@@ -106,6 +106,11 @@ var platforms = [
   // box around the map
   {x: -1000, y: -1000, width: 10, height: 4000 , color: 'gray'},
 ]
+var flags = [];
+flags = [
+  {x: 0, y: 400, width: 30, height: 70, color: 'FireBrick'},
+  {x: 1000, y: 400, width: 30, height: 70, color: 'DodgerBlue'},
+]
 var maps = [];
 var currentMap = 'lobby';
 var visuals = {
@@ -572,20 +577,64 @@ function draw() {
   ctx.clearRect(camera.x, camera.y, camera.width, camera.height);
   drawBackground();
   drawPlatforms();
+  drawFlags();
   drawPlayers();
-  drawLine(0, 0, 100, 100, 'red');
+  
+  // for entertainment purposes only
+  //crazyTriangles();
+
   drawCamera();
   renders ++;
 }
-function drawRect(x, y, width, height, color) {
-  ctx.fillStyle = color;
-  ctx.fillRect(x, y, width, height);
+function getRandomColor() {
+  var r = Math.floor(Math.random() * 256);
+  var g = Math.floor(Math.random() * 256);
+  var b = Math.floor(Math.random() * 256);
+  return "rgb(" + r + "," + g + "," + b + ")";
+}
+function crazyTriangles() {
+  for (var i = 0; i < 50; i++) {
+    var x1 = Math.floor(Math.random() * canvas.width);
+    var y1 = Math.floor(Math.random() * canvas.height);
+    var x2 = Math.floor(Math.random() * canvas.width);
+    var y2 = Math.floor(Math.random() * canvas.height);
+    var x3 = Math.floor(Math.random() * canvas.width);
+    var y3 = Math.floor(Math.random() * canvas.height);
+    var borderWidth = Math.floor(Math.random() * 10);
+    var borderColor = getRandomColor();
+    var fillColor = getRandomColor();
+    
+    drawTriangle(x1, y1, x2, y2, x3, y3, borderWidth, borderColor, fillColor);
+  }
 }
 function drawLine(x1, y1, x2, y2, color) {
   ctx.strokeStyle = color;
   ctx.beginPath();
   ctx.moveTo(x1, y1);
   ctx.lineTo(x2, y2);
+  ctx.stroke();
+}
+function drawRect(x, y, width, height, color) {
+  ctx.fillStyle = color;
+  ctx.fillRect(x, y, width, height);
+}
+function drawRectMore(x, y, width, height, borderWidth, borderColor, fillColor) {
+  ctx.fillStyle = fillColor;
+  ctx.fillRect(x, y, width, height);
+  ctx.strokeStyle = borderColor;
+  ctx.lineWidth = borderWidth;
+  ctx.strokeRect(x, y, width, height);
+}
+function drawTriangle(x1, y1, x2, y2, x3, y3, borderWidth, borderColor, fillColor) {
+  ctx.beginPath();
+  ctx.moveTo(x1, y1);
+  ctx.lineTo(x2, y2);
+  ctx.lineTo(x3, y3);
+  ctx.closePath();
+  ctx.fillStyle = fillColor;
+  ctx.fill();
+  ctx.lineWidth = borderWidth;
+  ctx.strokeStyle = borderColor;
   ctx.stroke();
 }
 function drawCircle(x, y, radius, color) {
@@ -595,11 +644,14 @@ function drawCircle(x, y, radius, color) {
   ctx.fill();
 }
 function drawText(text, x, y, color) {
+  ctx.strokeStyle = 'black'; // Set the stroke color to black
+  ctx.lineWidth = 2; // Set the stroke width to 1 pixel
   ctx.fillStyle = color;
   ctx.font = '15px Arial';
+  ctx.strokeText(text, x, y); // Draw the border
   ctx.fillText(text, x, y);
 }
-function drawImage(image, x, y, width, height) {
+function drawImage(image, x, y, width, height) { // not working
   ctx.drawImage(image, x, y, width, height);
 }
 function drawBackground() {
@@ -630,10 +682,10 @@ function drawPlayers() {
 
   // loop through all players and draw them
   for (var i = 0; i < playersArr.length; i++) {
-    drawRect(playersArr[i].x, playersArr[i].y, playersArr[i].width, playersArr[i].height, playersArr[i].color);
+    drawRectMore(playersArr[i].x, playersArr[i].y, playersArr[i].width, playersArr[i].height, 1 , 'black', playersArr[i].color);
     //console.log(playersArr[i]);
     // username text above player center
-    drawText(playersArr[i].name, playersArr[i].x - playersArr[i].name.length * 2.5, playersArr[i].y - 5, playersArr[i].color);
+    drawText(playersArr[i].name, playersArr[i].x - playersArr[i].name.length * 2.5, playersArr[i].y - 5, 'white');
   }
 }
 function drawProjectiles() {
@@ -666,6 +718,13 @@ function drawCamera() {
   camera.x = player.x - canvas.width / 2;
   camera.y = player.y - canvas.height / 2;
   ctx.setTransform(1, 0, 0, 1, -camera.x, -camera.y);
+}
+function drawFlags() { // draw flags on the map using the drawRectMore fillcolor is the flag color and bordercolor is black
+  for (var i = 0; i < flags.length; i++) {
+    // draw the flag pole
+    drawRect(flags[i].x + flags[i].width / 3, flags[i].y, 10, 100, 'Chocolate');
+    drawRectMore(flags[i].x, flags[i].y, flags[i].width, flags[i].height, 3, 'black', flags[i].color);
+  }
 }
 function updateDebugDisplay(deltaTime) {
   // check if mode is single player or multiplayer

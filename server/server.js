@@ -36,7 +36,7 @@ var currentMap = {}
 var maps = {
   lobby : {
     platforms: [ // this is intentionally a list because it is faster to iterate through it
-      {x: -200, y: 500, width: 14000, height: 50, color: 'white'},
+      {x: -200, y: 500, width: 1450, height: 50, color: 'white'},
     ],
     spawnpoints: {
       red : {x: 0, y: 100}, // x = left right, y = up down
@@ -44,10 +44,10 @@ var maps = {
     },
     flags : { // this is the place where the flags are spawned
       red: {x: 0, y: 400, width: 30, height: 70, color: 'FireBrick'},
-      blue: {x: 1000, y: 400, width: 30, height: 70, color: 'DodgerBlue'},
+      blue: {x: 1025, y: 400, width: 30, height: 70, color: 'DodgerBlue'},
     },
-    capturpoints: { // this is the place where 
-      red : {x1: 0, y1: 0, x2: 100, y2: 100}, // left top right bottom
+    captureZones: { // this is the place where 
+      red : {x1: 950, y1: 350, x2: 1100, y2: 500}, // left top right bottom
       blue : {x1: 0, y1: 0, x2: 100, y2: 100},
     },
   },

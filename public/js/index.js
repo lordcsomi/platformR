@@ -68,7 +68,13 @@ var mouse = {
 };
 var platforms = [];
 var flags = [];
-flags = [
+/*
+flags : { // this is the place where the flags are spawned
+  red: {x: 0, y: 400, width: 30, height: 70, color: 'FireBrick'},
+  blue: {x: 1025, y: 400, width: 30, height: 70, color: 'DodgerBlue'},
+},
+*/
+flags = [ // for now later I will use map.flags 
   {x: 0, y: 400, width: 30, height: 70, color: 'FireBrick'},
   {x: 1000, y: 400, width: 30, height: 70, color: 'DodgerBlue'},
 ]
@@ -365,7 +371,9 @@ socket.on('currentMap', function(data) {
   platforms = map.platforms;
 });
 
-
+function dateNowInSeconds() {
+  return Date.now() / 1000;
+}
 
 socket.on('startGame', function(data) {
   console.log('startGame received');
@@ -380,7 +388,7 @@ socket.on('startGame', function(data) {
     fps.innerHTML = 'fps: ' + renders + '';
     serverFPS.innerHTML = 'server fps: ' + serverUpdate + '';
     if (serverUpdate < 48) {
-      console.log('server is lagging', serverUpdate, Date.now());
+      console.log('server is lagging', serverUpdate, dateNowInSeconds());
     }
     serverUpdate = 0;
     renders = 0;
@@ -439,7 +447,7 @@ function draw() {
   ctx.clearRect(camera.x, camera.y, camera.width, camera.height);
   drawBackground();
   drawPlatforms();
-  //drawCaptureZones();
+  drawCaptureZones();
   drawFlags();
   drawPlayers();
   
@@ -521,10 +529,10 @@ function drawBackground() {
   drawRect(camera.x, camera.y, camera.width, camera.height, 'gray');
   // draw a grid on top of the background according to the word
   // "grid" in the word "background"
-  for (var i = -1000; i < 15000; i += 100) {
+  for (var i = -1000; i < 15000; i += 50) {
     drawRect(i, -1000, 1, 15000, 'DimGray');
   }
-  for (var i = -1000; i < 15000; i += 100) {
+  for (var i = -1000; i < 15000; i += 50) {
     drawRect(-1000, i, 15000, 1, 'DimGray');
   }
 
@@ -590,15 +598,15 @@ function drawFlags() { // draw flags on the map using the drawRectMore fillcolor
   }
 }
 function drawCaptureZone(x1, y1, x2, y2) {
-  drawRectMore(x1, y1, x2 - x1, y2 - y1, 3, 'black', 'rgba(255, 255, 255, 0.5)');
+  drawRectMore(x1, y1, x2 - x1, y2 - y1, 3, 'yellow', 'rgba(255, 255, 255, 0.2)');
+  // draw a 10px smaller rectangle inside the capture zone
+  drawRectMore(x1 + 10, y1 + 10, x2 - x1 - 20, y2 - y1 - 20, 1, 'yellow', 'none');
 }
-function drawCaptureZones() {
-  for (var i = 0; i < captureZones.length; i++) {
-    drawCaptureZone(captureZones[i].x1, captureZones[i].y1, captureZones[i].x2, captureZones[i].y2);
-  }
+function drawCaptureZones() { // map.captureZones
+  drawCaptureZone(map.captureZones.red.x1, map.captureZones.red.y1, map.captureZones.red.x2, map.captureZones.red.y2);
+  drawCaptureZone(map.captureZones.blue.x1, map.captureZones.blue.y1, map.captureZones.blue.x2, map.captureZones.blue.y2);
 }
 function updateDebugDisplay(deltaTime) {
-  // check if mode is single player or multiplayer
   if (mode === 'singlePlayer') {
     
 } else if (mode === 'multiPlayer') {

@@ -66,46 +66,7 @@ var mouse = {
   clickX: undefined,
   clickY: undefined
 };
-var platforms = [
-  {x: 0, y: 700, width: 1000, height: 100, color: 'white'},
-  {x: -500, y: 450, width: 1000, height: 100, color: 'white'},
-  {x: -1000, y: 200, width: 1000, height: 100, color: 'white'},
-  {x: -600, y: -400, width: 100, height: 500, color: 'white'},
-  {x: -300, y: -400, width: 100, height: 500, color: 'white'},
-  {x: 580, y: 600, width: 100, height: 100, color: 'white'},
-  {x: 50, y: 300, width: 100, height: 100, color: 'green'},
-  {x: 1000, y: 600, width: 1000, height: 100, color: 'white'},
-  {x: 2000, y: 500, width: 1000, height: 100, color: 'white'},
-  {x: 3000, y: 400, width: 1000, height: 100, color: 'white'},
-  {x: 3000, y: 300, width: 100, height: 100, color: 'white'},
-  {x: 3000, y: 200, width: 100, height: 100, color: 'white'},
-  {x: 3000, y: 100, width: 100, height: 100, color: 'white'},
-  {x: 3000, y: 0, width: 100, height: 100, color: 'white'},
-  {x: 3000, y: -100, width: 100, height: 100, color: 'white'},
-  {x: 3000, y: -200, width: 100, height: 100, color: 'white'},
-  {x: 3000, y: -300, width: 100, height: 100, color: 'white'},
-  {x: 3000, y: -400, width: 100, height: 100, color: 'white'},
-  {x: 3000, y: -500, width: 100, height: 100, color: 'white'},
-  {x: 1000, y: -200, width: 500, height: 100, color: 'white'},
-  {x: 0, y: -300, width: 500, height: 100, color: 'white'},
-  {x: 2000, y: -400, width: 500, height: 100, color: 'white'},
-  {x: 4000, y: 300, width: 1000, height: 100, color: 'white'},
-  {x: 5000, y: 200, width: 1000, height: 100, color: 'white'},
-  {x: 6000, y: 100, width: 1000, height: 100, color: 'white'},
-  {x: 7000, y: 0, width: 1000, height: 100, color: 'white'},
-  {x: 8000, y: -100, width: 1000, height: 100, color: 'white'},
-  {x: 9000, y: -200, width: 1000, height: 100, color: 'white'},
-  {x: 10000, y: -300, width: 1000, height: 100, color: 'white'},
-  {x: 11000, y: -400, width: 1000, height: 100, color: 'white'},
-  {x: 12000, y: -500, width: 1000, height: 100, color: 'white'},
-  {x: 13000, y: -600, width: 1000, height: 100, color: 'white'},
-  {x: 14000, y: -700, width: 1000, height: 100, color: 'white'},
-  {x: 15000, y: -800, width: 1000, height: 100, color: 'white'},
-  {x: 16000, y: -900, width: 1000, height: 100, color: 'white'},
-
-  // box around the map
-  {x: -1000, y: -1000, width: 10, height: 4000 , color: 'gray'},
-]
+var platforms = [];
 var flags = [];
 flags = [
   {x: 0, y: 400, width: 30, height: 70, color: 'FireBrick'},
@@ -113,24 +74,9 @@ flags = [
 ]
 var maps = [];
 var currentMap = 'lobby';
-var visuals = {
-  background: {
-    layer1: [
-      {name: 'dirt', path: 'platformer/public/assets/img/ground.png', x: 0, y: 0, width: 16, height: 16},
-    ],
-    layer2: [
-      {name: 'grass1', path: 'platformer/public/assets/img/grass1.png', x: 0, y: 0, width: 16, height: 16},
-      {name: 'grass2', path: 'platformer/public/assets/img/grass2.png', x: 0, y: 16, width: 16, height: 16},
-    ]
-  },
-  foreground: {
-    layer1: [
-      {name: 'dirt', path: 'platformer/public/assets/img/ground.png', x: 0, y: 0, width: 16, height: 16},
-    ]
-  }
-};
+
 var player = {} // the player object that the client controls
-var mode = 'lobby';
+var mode = 'main menu';
 var render = true
 var lastUpdate = Date.now();
 var lastRender = Date.now();
@@ -185,7 +131,6 @@ function getCookie(name) {
 }
 
 window.onload = function() {
-  // detect if the user is on a mobile device
   if (navigator.userAgent.match(/Android/i) ||
       navigator.userAgent.match(/webOS/i) ||
       navigator.userAgent.match(/iPhone/i) ||
@@ -194,8 +139,7 @@ window.onload = function() {
       navigator.userAgent.match(/BlackBerry/i) ||
       navigator.userAgent.match(/Windows Phone/i)) {
     mobile = true;
-  }
-  // load name from cookies
+  };
   if (getCookie('name') != '') {
     player.name = getCookie('name');
     nameInput.value = getCookie('name');
@@ -205,76 +149,10 @@ window.onload = function() {
     } else {
       console.log('loaded name from cookies', getCookie('name'));
     }
-
   } else {
     console.log('no name found in cookies');
   }
-
-  // send the screen size to the server 
   socket.emit('screenSize', {width: window.innerWidth, height: window.innerHeight});
-}
-
-//--------------------------------------------------------------------------------
-// LOAD ASSETS
-//--------------------------------------------------------------------------------
-assets = {
-  background: {
-    layer1: [],
-    layer2: []
-  },
-  foreground: {
-    layer1: []
-  },
-  player: {
-    idle: [],
-    run: [],
-    jump: [],
-    fall: [],
-    wallJump: [],
-  }
-}
-
-function loadAssets() {
-  for (let i = 0; i < visuals.background.layer1.length; i++) {
-    let img = new Image();
-    img.src = visuals.background.layer1[i].path;
-    assets.background.layer1.push(img);
-  }
-  for (let i = 0; i < visuals.background.layer2.length; i++) {
-    let img = new Image();
-    img.src = visuals.background.layer2[i].path;
-    assets.background.layer2.push(img);
-  }
-  for (let i = 0; i < visuals.foreground.layer1.length; i++) {
-    let img = new Image();
-    img.src = visuals.foreground.layer1[i].path;
-    assets.foreground.layer1.push(img);
-  }
-  for (let i = 0; i < 4; i++) {
-    let img = new Image();
-    img.src = 'platformer/public/assets/img/player/idle/' + i + '.png';
-    assets.player.idle.push(img);
-  }
-  for (let i = 0; i < 8; i++) {
-    let img = new Image();
-    img.src = 'platformer/public/assets/img/player/run/' + i + '.png';
-    assets.player.run.push(img);
-  }
-  for (let i = 0; i < 8; i++) {
-    let img = new Image();
-    img.src = 'platformer/public/assets/img/player/jump/' + i + '.png';
-    assets.player.jump.push(img);
-  }
-  for (let i = 0; i < 8; i++) {
-    let img = new Image();
-    img.src = 'platformer/public/assets/img/player/fall/' + i + '.png';
-    assets.player.fall.push(img);
-  }
-  for (let i = 0; i < 8; i++) {
-    let img = new Image();
-    img.src = 'platformer/public/assets/img/player/wallJump/' + i + '.png';
-    assets.player.wallJump.push(img);
-  }
 }
 
 //--------------------------------------------------------------------------------
@@ -304,8 +182,6 @@ window.addEventListener('mousedown', function(e) {
     mouse.click = true;
     mouse.clickX = e.clientX;
     mouse.clickY = e.clientY;
-    console.log('mouse click', mouse.clickX, mouse.clickY)
-    console.log('player on screen', player.x - camera.x + player.width / 2, player.y - camera.y + player.height / 2)
     console.log('angle', radiansToDegrees(angleBetweenPoints(player.x - camera.x + player.width / 2, player.y - camera.y + player.height / 2, mouse.clickX, mouse.clickY))) // problem here
   }
 });
@@ -350,7 +226,6 @@ singlePlayerButton.addEventListener('click', function() {
 });
 multiPlayerButton.addEventListener('click', function() {
   const name = nameInput.value;
-  // check if name is valid
   if (name.length < validName.minLength || name.length > validName.maxLength) {
     alert('Name must be between ' + validName.minLength + ' and ' + validName.maxLength + ' characters.');
     return;
@@ -365,12 +240,10 @@ multiPlayerButton.addEventListener('click', function() {
       return;
     }
   }
-  // check if name is already in use
   if (takenNames.includes(name)) {
     alert('Name is already in use.');
     return;
   }
-  // set name
   socket.emit('setName', name);
   console.log('trying to set name to ' + name);
 });
@@ -392,10 +265,7 @@ toggleFullscreen.addEventListener('click', () => {
   }
 });
 backToHome.addEventListener('click', () => {
-  player.x = 0;
-  player.y = 0;
-  player.dX = 0;
-  player.dY = 0;
+  socket.emit('backToSpawn', myName); //
 });
 toggleKeyboard.addEventListener('click', () => {
   if (keyboard.style.display === 'none') {
@@ -412,16 +282,11 @@ prediction.addEventListener('click', () => {
     predict = true;
   }
 });
-
-
-
-// Add event listeners to the hotbar slots
 hotbarSlots.forEach((slot, index) => {
   slot.addEventListener('click', () => {
     setActiveSlot(index);
   });
 });
-// render visuals or not
 toggleRender.addEventListener('click', () => {
   if (render) {    render = false;
   } else {
@@ -494,13 +359,10 @@ socket.on('maps', function(data) {
 });
 
 socket.on('currentMap', function(data) {
-  console.log('currentMap received');
   currentMap = data;
-  for (let i = 0; i < maps.length; i++) {
-    if (maps[i].name == currentMap) {
-      platforms = maps[i].platforms
-    }
-  }
+  console.log('currentMap is ' + currentMap);
+  map = maps[currentMap];
+  platforms = map.platforms;
 });
 
 
@@ -577,6 +439,7 @@ function draw() {
   ctx.clearRect(camera.x, camera.y, camera.width, camera.height);
   drawBackground();
   drawPlatforms();
+  //drawCaptureZones();
   drawFlags();
   drawPlayers();
   
@@ -724,6 +587,14 @@ function drawFlags() { // draw flags on the map using the drawRectMore fillcolor
     // draw the flag pole
     drawRect(flags[i].x + flags[i].width / 3, flags[i].y, 10, 100, 'Chocolate');
     drawRectMore(flags[i].x, flags[i].y, flags[i].width, flags[i].height, 3, 'black', flags[i].color);
+  }
+}
+function drawCaptureZone(x1, y1, x2, y2) {
+  drawRectMore(x1, y1, x2 - x1, y2 - y1, 3, 'black', 'rgba(255, 255, 255, 0.5)');
+}
+function drawCaptureZones() {
+  for (var i = 0; i < captureZones.length; i++) {
+    drawCaptureZone(captureZones[i].x1, captureZones[i].y1, captureZones[i].x2, captureZones[i].y2);
   }
 }
 function updateDebugDisplay(deltaTime) {

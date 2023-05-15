@@ -30,74 +30,31 @@ const serverSettings = {
   'maxSpectators': 10,
   'maxPlayersPerRoom': 4,
 };
-var platforms = [
-  {x: 0, y: 700, width: 1000, height: 100, color: 'white'},
-  {x: -500, y: 450, width: 1000, height: 100, color: 'white'},
-  {x: -1000, y: 200, width: 1000, height: 100, color: 'white'},
-  {x: -600, y: -400, width: 100, height: 500, color: 'white'},
-  {x: -300, y: -400, width: 100, height: 500, color: 'white'},
-  {x: 580, y: 600, width: 100, height: 100, color: 'white'},
-  {x: 50, y: 300, width: 100, height: 100, color: 'green'},
-  {x: 1000, y: 600, width: 1000, height: 100, color: 'white'},
-  {x: 2000, y: 500, width: 1000, height: 100, color: 'white'},
-  {x: 3000, y: 400, width: 1000, height: 100, color: 'white'},
-  {x: 3000, y: 300, width: 100, height: 100, color: 'white'},
-  {x: 3000, y: 200, width: 100, height: 100, color: 'white'},
-  {x: 3000, y: 100, width: 100, height: 100, color: 'white'},
-  {x: 3000, y: 0, width: 100, height: 100, color: 'white'},
-  {x: 3000, y: -100, width: 100, height: 100, color: 'white'},
-  {x: 3000, y: -200, width: 100, height: 100, color: 'white'},
-  {x: 3000, y: -300, width: 100, height: 100, color: 'white'},
-  {x: 3000, y: -400, width: 100, height: 100, color: 'white'},
-  {x: 3000, y: -500, width: 100, height: 100, color: 'white'},
-  {x: 1000, y: -200, width: 500, height: 100, color: 'white'},
-  {x: 0, y: -300, width: 500, height: 100, color: 'white'},
-  {x: 2000, y: -400, width: 500, height: 100, color: 'white'},
-  {x: 4000, y: 300, width: 1000, height: 100, color: 'white'},
-  {x: 5000, y: 200, width: 1000, height: 100, color: 'white'},
-  {x: 6000, y: 100, width: 1000, height: 100, color: 'white'},
-  {x: 7000, y: 0, width: 1000, height: 100, color: 'white'},
-  {x: 8000, y: -100, width: 1000, height: 100, color: 'white'},
-  {x: 9000, y: -200, width: 1000, height: 100, color: 'white'},
-  {x: 10000, y: -300, width: 1000, height: 100, color: 'white'},
-  {x: 11000, y: -400, width: 1000, height: 100, color: 'white'},
-  {x: 12000, y: -500, width: 1000, height: 100, color: 'white'},
-  {x: 13000, y: -600, width: 1000, height: 100, color: 'white'},
-  {x: 14000, y: -700, width: 1000, height: 100, color: 'white'},
-  {x: 15000, y: -800, width: 1000, height: 100, color: 'white'},
-  {x: 16000, y: -900, width: 1000, height: 100, color: 'white'},
-
-  // box around the map
-  {x: -1000, y: -1000, width: 10, height: 4000 , color: 'gray'},
-
-]
+var platforms = []
 var gameMap = 'lobby'
-var maps = [
-  {
-    name : 'lobby', // lobby map for the players to wait for the game to start
-    platforms: [
+var currentMap = {}
+var maps = {
+  lobby : {
+    platforms: [ // this is intentionally a list because it is faster to iterate through it
       {x: -200, y: 500, width: 14000, height: 50, color: 'white'},
     ],
     spawnpoints: {
       red : {x: 0, y: 100}, // x = left right, y = up down
       blue : {x: 1000, y: 100},
     },
-    flags : {
-      red: {x: 0, y: 400, width: 30, height: 50, color: 'red'},
-      blue: {x: 1000, y: 400, width: 30, height: 50, color: 'blue'},
+    flags : { // this is the place where the flags are spawned
+      red: {x: 0, y: 400, width: 30, height: 70, color: 'FireBrick'},
+      blue: {x: 1000, y: 400, width: 30, height: 70, color: 'DodgerBlue'},
     },
-    capturpoints: {
+    capturpoints: { // this is the place where 
       red : {x1: 0, y1: 0, x2: 100, y2: 100}, // left top right bottom
       blue : {x1: 0, y1: 0, x2: 100, y2: 100},
-    }
+    },
   },
-]
-// for now set the map to lobby 
-for (let i = 0; i < maps.length; i++) {
-  if (maps[i].name == gameMap) {
-    platforms = maps[i].platforms
-  }
 }
+// for now set the map to lobby 
+currentMap = maps.lobby
+platforms = currentMap.platforms
 
 //---------------------------------
 // GLOBAL VARIABLES
@@ -243,16 +200,27 @@ function updatePlayer(player, input, deltaTime) {
       }
     }
     if(falloffDetection(player)) { // the player fallen of the map
-      player.x = 0
-      player.y = 0
+      // send player to its spawn
+      player.x = currentMap.spawnpoints[player.team].x
+      player.y = currentMap.spawnpoints[player.team].y
+      player.dX = 0
+      player.dY = 0
       return
     }
     if(player.hasFlag === false) { 
       //detect if the player touched the enemy flag
-      if (player.team === 'red') {
-        if (flagTouchingPlayer(player, flags.blue)) {
+      if (player.team === 'red') { //
+        if (flagTouchingPlayer(player, currentMap.flags.blue)) {
           // the enemy flag should be carried by the player
-          console.log(player.name, 'touched the enemy flag')
+          player.hasFlag = 'blue'
+          console.log(player.name, 'has the blue flag');
+        }
+      };
+      if(player.team === 'blue') {
+        if (flagTouchingPlayer(player, currentMap.flags.red)) {
+          // the enemy flag should be carried by the player
+          player.hasFlag = 'red'
+          console.log(player.name, 'has the red flag');
         }
       }
     }
@@ -409,7 +377,6 @@ function collisionCheck(player) {
 
 function falloffDetection(player) {
   if (player.y > 2000) {
-    console.log('FALLOFF DETECTED', player.id, player.name, player.x, player.y, player.dX, player.dY);
     return true;
   }
   return false;
@@ -425,7 +392,7 @@ function checkIFValidPosition(enity) {
 }
 
 //--------------------------------
-// CONNECTION
+// SERVER SETUP
 //--------------------------------
 const publicPath = path.join(__dirname, '../public');
 app.use(express.static(publicPath));
@@ -440,9 +407,15 @@ server.listen(port, function () {
   const ip = Object.values(os.networkInterfaces())
     .flatMap((iface) => iface.filter((info) => info.family === 'IPv4' && !info.internal))
     .map((info) => info.address)[0];
-  console.log(`Server listening on http://${ip}:3000`);
+    console.log(`Server version: ${version}`);
+    console.log(`Server environment: ${environment}`);
+    console.log(`Server listening on http://${host}:${port}`);
+    console.log(`Server listening on http://${ip}:3000`);
 });
 
+//---------------------------------
+// SOCKET.IO
+//---------------------------------
 io.on('connection', function (socket) {
   if (bannedIPs.includes(socket.handshake.address)) {
     console.log('banned ip tried to connect:', socket.handshake.address);
@@ -498,8 +471,10 @@ io.on('connection', function (socket) {
     var wichTeam = chooseTeam(teams)
     teams[wichTeam][socket.id] = name
     //console.log(teams) // strangly sometimes the socket.id is in '' and sometimes not
-    spawnpoint = maps[0].spawnpoints[wichTeam]
+    spawnpoint = currentMap.spawnpoints[wichTeam]
     gameState[socket.id] = new Player(name, socket.id, 'lobby', wichTeam, spawnpoint.x, spawnpoint.y); // spawn the player in the lobby
+    gameState[socket.id].team = wichTeam
+    console.log(gameState[socket.id].team)
     gameState[socket.id].state = 'inGame';
     socket.emit('gameState', gameState);
     socket.emit('nameSet', name);
@@ -545,7 +520,7 @@ io.on('connection', function (socket) {
 // Delta time alap mertekegysege: ms
 // az idealis 1/60 seconds ami milisecondben 16.66
 var lastTime = Date.now();
-var deltaTime = 0;
+var deltaTime = 1/60;
 setInterval(function () {
   if (Object.keys(gameState).length === 0) return;
   // physics calculated with seconds deltatime so
@@ -559,7 +534,7 @@ setInterval(function () {
     }
   }
   //lastTime = Date.now();
-}, 1000/ 64);
+}, 1000/ 60);
 
 //---------------------------------
 // ERROR HANDLING
